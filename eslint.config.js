@@ -4,6 +4,26 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
+// Member access to a `_`-prefixed name: by convention another library's
+// internals, which can change in any release without notice. The prototype's
+// SSH server once read a private ssh2 field instead of using its public
+// `injectSocket`. Both spellings are caught, `obj._name` and `obj['_name']`;
+// a computed key that is a variable (`obj[_name]`) and an import named with
+// `_` (Playwright's `_electron`) are not member access to a private name.
+// `#private` members are already a compile error.
+const privateMemberAccess = [
+  {
+    selector: 'MemberExpression[computed=false] > Identifier.property[name=/^_/]',
+    message:
+      'Do not reach into `_`-prefixed members: they are private to their owner. Use its public API.',
+  },
+  {
+    selector: 'MemberExpression[computed=true] > Literal.property[value=/^_/]',
+    message:
+      'Do not reach into `_`-prefixed members: they are private to their owner. Use its public API.',
+  },
+];
+
 export default tseslint.config(
   {
     ignores: [
@@ -69,6 +89,17 @@ export default tseslint.config(
   {
     files: ['tests/**/*.{ts,tsx}', 'scripts/**/*.{ts,tsx}', '*.config.{js,ts}'],
     languageOptions: { globals: globals.node },
+  },
+
+  // Flat config replaces a rule's options when two matching blocks both set
+  // it, rather than merging them. A later block that sets
+  // `no-restricted-syntax` for any of these files must repeat
+  // `privateMemberAccess` alongside its own selectors.
+  {
+    files: ['apps/**/*.{ts,tsx}', 'packages/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-syntax': ['error', ...privateMemberAccess],
+    },
   },
 
   prettier,
