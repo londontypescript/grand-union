@@ -21,10 +21,11 @@ const GENEROUS_MS = 2000;
 // The deadlines a test isn't about: far beyond any wait it makes, so one of
 // them firing can never stand in for the limit under test.
 const UNRELATED_MS = 60_000;
-// Above each test's own waits (connecting is bounded at 5 s) plus cleanup
-// (closing the server is bounded at 5 s), so a broken limit fails with its
-// own message, never with Vitest's timeout.
-const TEST_TIMEOUT_MS = 30_000;
+// Above each test's own waits (connecting is bounded at 5 s; the re-arm
+// test's longest wait is 15 s) plus cleanup (closing the server is bounded
+// at 5 s), so a broken limit fails with its own message, never with
+// Vitest's timeout.
+const TEST_TIMEOUT_MS = 45_000;
 // The re-arm test's pre-shell deadline.
 const PRE_SHELL_MS = 1000;
 
@@ -111,7 +112,8 @@ describe('ssh limits', { timeout: TEST_TIMEOUT_MS }, () => {
     // The same deadline also runs before the shell opens, so it has to
     // outlast opening one on a slow CI runner; 150 ms did not. Without the
     // re-arm the connection never closes, so a longer deadline still proves it.
-    // The wait for that close is ten times the deadline it waits out.
+    // The wait for that close is 15 times the deadline it waits out (closing
+    // took 1,005 ms at most, measured locally).
     const { server } = createServer(testOptions({ preShellTimeoutMs: PRE_SHELL_MS }));
     const port = await listen(server);
     const client = new Client();
@@ -126,7 +128,7 @@ describe('ssh limits', { timeout: TEST_TIMEOUT_MS }, () => {
 
       // The shell is gone but the connection is still open — the deadline
       // should be running again, not left disarmed.
-      await waitForEvent(client, 'close', PRE_SHELL_MS * 10);
+      await waitForEvent(client, 'close', PRE_SHELL_MS * 15);
     } finally {
       client.destroy();
       await closeServer(server);

@@ -16,7 +16,9 @@ import {
 // destructure rather than a named import.
 const { Client } = ssh2;
 
-const GENEROUS_MS = 2000;
+// More than ten times the slowest shutdown measured locally: 203 ms, for
+// the deadline test's 200 ms deadline.
+const GENEROUS_MS = 3000;
 // The deadlines a test isn't about: far beyond any wait it makes, so one of
 // them firing can never stand in for the shutdown under test.
 const UNRELATED_MS = 60_000;
