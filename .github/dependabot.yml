@@ -38,6 +38,11 @@ updates:
           - 'three'
           - '@types/three'
           - 'ink'
+      # temple-bar's judge refuses a pull request that bumps the pinned
+      # temple-bar alongside anything else, so it always gets its own.
+      temple-bar:
+        patterns:
+          - '@londontypescript/temple-bar'
       npm-dependencies:
         exclude-patterns:
           - 'react'
@@ -48,5 +53,6 @@ updates:
           - 'three'
           - '@types/three'
           - 'ink'
+          - '@londontypescript/temple-bar'
         patterns:
           - '*'
