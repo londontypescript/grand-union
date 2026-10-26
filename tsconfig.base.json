@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    // --- language & module resolution -------------------------------------
+    "target": "ES2023",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    // "preserve" hands module syntax to the bundler (Vite) instead of tsc
+    // rewriting it; paired with "bundler" resolution this matches how the
+    // code actually runs, not how a Node loader would run it.
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    "moduleDetection": "force",
+    "jsx": "react-jsx",
+    "resolveJsonModule": true,
+    // Relative imports use explicit .ts/.tsx extensions (Node ESM and Vite
+    // both expect a resolvable specifier); safe only because this config
+    // never emits — tsc only type-checks here.
+    "allowImportingTsExtensions": true,
+
+    // --- strictness ----------------------------------------------------------
+    "strict": true,
+    // Index access (arr[i], record[key]) returns `T | undefined` instead of
+    // `T` — an array/record read is not a guarantee the element exists.
+    "noUncheckedIndexedAccess": true,
+    // An optional property (`age?: number`) may be absent, but can't be set
+    // to `undefined` explicitly — `'age' in obj` and `Object.keys` tell those
+    // two apart at runtime, so the types do too.
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    // On a type with an index signature, a dotted access (`obj.foo`) must be
+    // a declared property; anything reachable only through the index
+    // signature needs bracket access (`obj['foo']`). So a typo'd dotted
+    // access still fails to compile instead of silently resolving through
+    // the index signature.
+    "noPropertyAccessFromIndexSignature": true,
+
+    // --- emit ----------------------------------------------------------------
+    // This repo never runs `tsc` to emit JS — Vite/tsx do that — so tsc is
+    // used purely as a type checker.
+    "noEmit": true,
+    "isolatedModules": true,
+    // Every import/export of a type must say so explicitly (`import type`),
+    // which is what makes "isolatedModules" and single-file transpilation
+    // (esbuild/swc) safe: a transpiler cannot see across files to know a
+    // plain import was type-only.
+    "verbatimModuleSyntax": true,
+
+    // --- interop & performance -------------------------------------------
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    // Third-party .d.ts files are not re-checked; only this repo's own types
+    // are held to the strictness above.
+    "skipLibCheck": true
+  }
+}

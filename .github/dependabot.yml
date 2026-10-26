@@ -1,0 +1,59 @@
+version: 2
+updates:
+  # No github-actions entry yet: the only workflows are temple-bar's, which
+  # the gate requires to match its own copies exactly, so a Dependabot bump of
+  # their actions would fail every time. They are updated by upgrading
+  # temple-bar. The project has no workflow of its own until the render
+  # checks' in Phase 5 (#8), which decides how that one's actions are kept
+  # current.
+
+  # Routine version updates only. Security fixes don't wait for this
+  # schedule: Dependabot security updates (a repository setting, see
+  # docs/github-settings.md) open a PR as soon as an advisory is published.
+  # Every commit message, and so every pull request title, starts `chore`:
+  # temple-bar's title check takes only a conventional prefix.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: chore
+    ignore:
+      # Node's types must match the Node major in .nvmrc; bump both by hand.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
+    groups:
+      # ADR 0004: React is pinned to the narrow intersection of r3f's and
+      # Ink's peer ranges, with strictPeerDependencies: true — these move
+      # together or not at all, never split across separate PRs. Before
+      # merging one: see the render checks pass (CI's render job, from
+      # Phase 5, #8) and check the new versions against ADR 0005's window.
+      renderer-stack:
+        patterns:
+          - 'react'
+          - 'react-dom'
+          - '@types/react'
+          - '@types/react-dom'
+          - '@react-three/*'
+          - 'three'
+          - '@types/three'
+          - 'ink'
+      # A bump of the pinned temple-bar belongs in a pull request of its own:
+      # the judge refuses every one, so the maintainer merges it, and nothing
+      # else should ride along with it.
+      temple-bar:
+        patterns:
+          - '@londontypescript/temple-bar'
+      npm-dependencies:
+        exclude-patterns:
+          - 'react'
+          - 'react-dom'
+          - '@types/react'
+          - '@types/react-dom'
+          - '@react-three/*'
+          - 'three'
+          - '@types/three'
+          - 'ink'
+          - '@londontypescript/temple-bar'
+        patterns:
+          - '*'
