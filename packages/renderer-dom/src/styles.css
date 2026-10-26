@@ -1,0 +1,60 @@
+:root {
+  --lts-color-background: #0b0f19;
+  --lts-color-foreground: #e6e9f0;
+  --lts-color-muted: #9aa4b8;
+  --lts-color-accent: #3178c6;
+  --lts-font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --lts-measure: 60ch;
+}
+
+.lts-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100dvh;
+  box-sizing: border-box;
+  padding: 4rem 1.5rem;
+  gap: 1.5rem;
+  background: var(--lts-color-background);
+  color: var(--lts-color-foreground);
+  font-family: var(--lts-font-family);
+}
+
+.lts-header {
+  margin: 0;
+  padding-bottom: 0.75rem;
+  max-width: var(--lts-measure);
+  font-size: clamp(1.75rem, 4vw, 2.75rem);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-align: center;
+  border-bottom: 3px solid var(--lts-color-accent);
+}
+
+.lts-paragraph {
+  margin: 0;
+  max-width: var(--lts-measure);
+  font-size: 1.0625rem;
+  line-height: 1.6;
+  color: var(--lts-color-muted);
+  text-align: center;
+}
+
+.lts-divider {
+  width: min(var(--lts-measure), 100%);
+  height: 0;
+  margin: 0;
+  border: none;
+  border-top: 1px solid var(--lts-color-accent);
+  opacity: 0.5;
+}
+
+.lts-quote {
+  margin: 0;
+  max-width: var(--lts-measure);
+  padding-left: 1rem;
+  border-left: 3px solid var(--lts-color-accent);
+  font-style: italic;
+  color: var(--lts-color-foreground);
+}

@@ -1,0 +1,21 @@
+{
+  "name": "@lts/vocabulary",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint .",
+    "format:check": "prettier --check .",
+    "test": "vitest run --root ../.. --project unit packages/vocabulary/"
+  },
+  "dependencies": {
+    "react": "catalog:"
+  },
+  "devDependencies": {
+    "@types/react": "catalog:",
+    "typescript": "catalog:"
+  }
+}

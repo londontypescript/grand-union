@@ -1,0 +1,22 @@
+{
+  "name": "@lts/pages",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint .",
+    "format:check": "prettier --check .",
+    "test": "vitest run --root ../.. --project unit packages/pages/"
+  },
+  "dependencies": {
+    "@lts/vocabulary": "workspace:*",
+    "react": "catalog:"
+  },
+  "devDependencies": {
+    "@types/react": "catalog:",
+    "typescript": "catalog:"
+  }
+}
