@@ -1,0 +1,4 @@
+# Prettier reads the ignore file in the folder it runs from only, so the
+# root's doesn't reach this package's own format:check: without this, a
+# local build fails it.
+dist

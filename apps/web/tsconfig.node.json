@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  // vite.config.ts runs in Node, not the browser, so it is checked apart
+  // from src/: Node's types here, the browser's (vite/client) there.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"],
+    // It imports scripts/ports.ts, which Node runs by stripping its types.
+    "erasableSyntaxOnly": true
+  },
+  "include": ["vite.config.ts"]
+}
