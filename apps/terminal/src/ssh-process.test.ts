@@ -213,115 +213,96 @@ function identifiedSocket(port: number): Promise<net.Socket> {
   });
 }
 
-describe('the server process: its port', () => {
-  it(
-    'exits 1 naming PORT when it is not a port',
-    async () => {
-      const run = start({ PORT: 'abc', LTS_HOST_KEY_PATH: hostKeyFile() });
+describe('the server process: its port', { timeout: TEST_TIMEOUT_MS }, () => {
+  it('exits 1 naming PORT when it is not a port', async () => {
+    const run = start({ PORT: 'abc', LTS_HOST_KEY_PATH: hostKeyFile() });
 
-      const exit = await exitWithin(run, STARTUP_MS, 'PORT=abc should stop the server');
+    const exit = await exitWithin(run, STARTUP_MS, 'PORT=abc should stop the server');
 
-      expect(exit, describeRun(run)).toEqual({ code: 1, signal: null });
-      expect(run.stderr()).toContain('[terminal] invalid PORT "abc"');
-    },
-    TEST_TIMEOUT_MS,
-  );
+    expect(exit, `the exit for PORT=abc; ${describeRun(run)}`).toEqual({ code: 1, signal: null });
+    expect(run.stderr()).toContain('[terminal] invalid PORT "abc"');
+  });
 
-  it(
-    'listens on LTS_PORT_BASE + 2 when PORT is unset',
-    async () => {
-      const base = await freeBase();
-      const run = start({ LTS_PORT_BASE: String(base), LTS_HOST_KEY_PATH: hostKeyFile() });
+  it('listens on LTS_PORT_BASE + 2 when PORT is unset', async () => {
+    const base = await freeBase();
+    const run = start({ LTS_PORT_BASE: String(base), LTS_HOST_KEY_PATH: hostKeyFile() });
 
-      const port = await listeningPort(run);
+    const port = await listeningPort(run);
 
-      expect(port, `LTS_PORT_BASE=${String(base)}`).toBe(base + 2);
-      await identifiedSocket(base + 2);
-    },
-    TEST_TIMEOUT_MS,
-  );
+    expect(port, `LTS_PORT_BASE=${String(base)}`).toBe(base + 2);
+    await identifiedSocket(base + 2);
+  });
 
-  it(
-    'listens on PORT when both PORT and LTS_PORT_BASE are set',
-    async () => {
-      const wanted = await freePort();
-      const base = await freeBase();
-      const run = start({
-        PORT: String(wanted),
-        LTS_PORT_BASE: String(base),
-        LTS_HOST_KEY_PATH: hostKeyFile(),
-      });
+  it('listens on PORT when both PORT and LTS_PORT_BASE are set', async () => {
+    const wanted = await freePort();
+    const base = await freeBase();
+    const run = start({
+      PORT: String(wanted),
+      LTS_PORT_BASE: String(base),
+      LTS_HOST_KEY_PATH: hostKeyFile(),
+    });
 
-      expect(
-        await listeningPort(run),
-        `PORT=${String(wanted)}, LTS_PORT_BASE=${String(base)}`,
-      ).toBe(wanted);
-      await identifiedSocket(wanted);
-    },
-    TEST_TIMEOUT_MS,
-  );
-});
-
-describe('the server process: its host key', () => {
-  it(
-    'exits non-zero naming LTS_HOST_KEY_PATH when that file is not a key',
-    async () => {
-      const keyPath = path.join(tempDir(), 'host_ed25519');
-      writeFileSync(keyPath, 'not a valid key', { mode: 0o600 });
-      const run = start({ PORT: String(await freePort()), LTS_HOST_KEY_PATH: keyPath });
-
-      const exit = await exitWithin(
-        run,
-        STARTUP_MS,
-        `LTS_HOST_KEY_PATH=${keyPath} holds no key, so the server should stop`,
-      );
-
-      expect(exit.code, describeRun(run)).not.toBe(0);
-      expect(run.stderr()).toContain(keyPath);
-    },
-    TEST_TIMEOUT_MS,
-  );
-});
-
-describe('the server process: stopping', () => {
-  for (const signal of ['SIGINT', 'SIGTERM'] as const) {
-    it(
-      `exits 0 on ${signal}`,
-      async () => {
-        const run = start({ PORT: String(await freePort()), LTS_HOST_KEY_PATH: hostKeyFile() });
-        await listeningPort(run);
-
-        run.child.kill(signal);
-
-        const exit = await exitWithin(run, STOP_MS, `${signal} should stop the server`);
-        expect(exit, describeRun(run)).toEqual({ code: 0, signal: null });
-      },
-      TEST_TIMEOUT_MS,
+    expect(await listeningPort(run), `PORT=${String(wanted)}, LTS_PORT_BASE=${String(base)}`).toBe(
+      wanted,
     );
+    await identifiedSocket(wanted);
+  });
+});
+
+describe('the server process: its host key', { timeout: TEST_TIMEOUT_MS }, () => {
+  it('exits non-zero naming LTS_HOST_KEY_PATH when that file is not a key', async () => {
+    const keyPath = path.join(tempDir(), 'host_ed25519');
+    writeFileSync(keyPath, 'not a valid key', { mode: 0o600 });
+    const run = start({ PORT: String(await freePort()), LTS_HOST_KEY_PATH: keyPath });
+
+    const exit = await exitWithin(
+      run,
+      STARTUP_MS,
+      `LTS_HOST_KEY_PATH=${keyPath} holds no key, so the server should stop`,
+    );
+
+    expect(exit.code, `the exit code for a bad host key; ${describeRun(run)}`).not.toBe(0);
+    expect(run.stderr()).toContain(keyPath);
+  });
+});
+
+describe('the server process: stopping', { timeout: TEST_TIMEOUT_MS }, () => {
+  for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+    it(`exits 0 on ${signal}`, async () => {
+      const run = start({ PORT: String(await freePort()), LTS_HOST_KEY_PATH: hostKeyFile() });
+      await listeningPort(run);
+
+      run.child.kill(signal);
+
+      const exit = await exitWithin(run, STOP_MS, `${signal} should stop the server`);
+      expect(exit, `the exit after ${signal}; ${describeRun(run)}`).toEqual({
+        code: 0,
+        signal: null,
+      });
+    });
   }
 
-  it(
-    'exits 1 on a second signal while shutdown waits for a stuck visitor',
-    async () => {
-      const run = start({ PORT: String(await freePort()), LTS_HOST_KEY_PATH: hostKeyFile() });
-      const port = await listeningPort(run);
-      // Connected and identified by the server, but never answering: shutdown
-      // waits for it until its deadline.
-      await identifiedSocket(port);
+  it('exits 1 on a second signal while shutdown waits for a stuck visitor', async () => {
+    const run = start({ PORT: String(await freePort()), LTS_HOST_KEY_PATH: hostKeyFile() });
+    const port = await listeningPort(run);
+    // Connected and identified by the server, but never answering: shutdown
+    // waits for it until its deadline.
+    await identifiedSocket(port);
 
-      run.child.kill('SIGINT');
-      await untilStdout(run, /\[terminal\] shutting down\n/, STOP_MS);
-      run.child.kill('SIGINT');
+    run.child.kill('SIGINT');
+    await untilStdout(run, /\[terminal\] shutting down\n/, STOP_MS);
+    run.child.kill('SIGINT');
 
-      // Waits past the shutdown deadline, so a server that ignores the second
-      // signal is seen exiting 0 there rather than timing out here.
-      const exit = await exitWithin(
-        run,
-        SHUTDOWN_DEADLINE_MS + STOP_MS,
-        'a second SIGINT should stop the server',
-      );
-      expect(exit, describeRun(run)).toEqual({ code: 1, signal: null });
-    },
-    TEST_TIMEOUT_MS,
-  );
+    // Waits past the shutdown deadline, so a server that ignores the second
+    // signal is seen exiting 0 there rather than timing out here.
+    const exit = await exitWithin(
+      run,
+      SHUTDOWN_DEADLINE_MS + STOP_MS,
+      'a second SIGINT should stop the server',
+    );
+    expect(exit, `the exit after a second SIGINT; ${describeRun(run)}`).toEqual({
+      code: 1,
+      signal: null,
+    });
+  });
 });

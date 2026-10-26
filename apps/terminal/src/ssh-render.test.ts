@@ -230,76 +230,60 @@ const expectVerticalPlacement = {
   },
 } satisfies Record<VerticalAlign, (lines: readonly string[]) => void>;
 
-describe('ssh render', () => {
+describe('ssh render', { timeout: TEST_TIMEOUT_MS }, () => {
   for (const align of VERTICAL_ALIGN) {
-    it(
-      `renders ${align} correctly over a real SSH pty`,
-      async () => {
-        await withSession(align, { cols: COLS, rows: ROWS }, async ({ terminal, flush }) => {
-          const lines = await waitForStableLines(terminal, flush, (ls) =>
-            ls.some((line) => line.includes(HEADER_TEXT)),
-          );
+    it(`renders ${align} correctly over a real SSH pty`, async () => {
+      await withSession(align, { cols: COLS, rows: ROWS }, async ({ terminal, flush }) => {
+        const lines = await waitForStableLines(terminal, flush, (ls) =>
+          ls.some((line) => line.includes(HEADER_TEXT)),
+        );
 
-          const header = expectHeaderCentered(lines, COLS);
-          expectNoStaircase(firstParagraphLines(lines, header.row));
-          expectVerticalPlacement[align](lines);
-        });
-      },
-      TEST_TIMEOUT_MS,
-    );
+        const header = expectHeaderCentered(lines, COLS);
+        expectNoStaircase(firstParagraphLines(lines, header.row));
+        expectVerticalPlacement[align](lines);
+      });
+    });
   }
 
-  it(
-    're-centers the header after a resize',
-    async () => {
-      await withSession(
-        'middle',
-        { cols: COLS, rows: ROWS },
-        async ({ terminal, flush, resize }) => {
-          await waitForStableLines(terminal, flush, (ls) =>
-            ls.some((line) => line.includes(HEADER_TEXT)),
-          );
-
-          const newSize = { cols: 60, rows: ROWS };
-          resize(newSize);
-
-          const lines = await waitForStableLines(terminal, flush, (ls) => {
-            const header = findHeader(ls);
-            if (!header) {
-              return false;
-            }
-            return Math.abs(header.column - (newSize.cols - HEADER_TEXT.length) / 2) <= 1;
-          });
-
-          expectHeaderCentered(lines, newSize.cols);
-        },
+  it('re-centers the header after a resize', async () => {
+    await withSession('middle', { cols: COLS, rows: ROWS }, async ({ terminal, flush, resize }) => {
+      await waitForStableLines(terminal, flush, (ls) =>
+        ls.some((line) => line.includes(HEADER_TEXT)),
       );
-    },
-    TEST_TIMEOUT_MS,
-  );
 
-  it(
-    'ends the session and says goodbye when the client sends q',
-    async () => {
-      await withSession(
-        'middle',
-        { cols: COLS, rows: ROWS },
-        async ({ terminal, flush, stream, rawText }) => {
-          await waitForStableLines(terminal, flush, (ls) =>
-            ls.some((line) => line.includes(HEADER_TEXT)),
-          );
+      const newSize = { cols: 60, rows: ROWS };
+      resize(newSize);
 
-          const closed = new Promise<void>((resolve) => {
-            stream.on('close', resolve);
-          });
+      const lines = await waitForStableLines(terminal, flush, (ls) => {
+        const header = findHeader(ls);
+        if (!header) {
+          return false;
+        }
+        return Math.abs(header.column - (newSize.cols - HEADER_TEXT.length) / 2) <= 1;
+      });
 
-          stream.write('q');
-          await closed;
+      expectHeaderCentered(lines, newSize.cols);
+    });
+  });
 
-          expect(rawText()).toContain('Goodbye');
-        },
-      );
-    },
-    TEST_TIMEOUT_MS,
-  );
+  it('ends the session and says goodbye when the client sends q', async () => {
+    await withSession(
+      'middle',
+      { cols: COLS, rows: ROWS },
+      async ({ terminal, flush, stream, rawText }) => {
+        await waitForStableLines(terminal, flush, (ls) =>
+          ls.some((line) => line.includes(HEADER_TEXT)),
+        );
+
+        const closed = new Promise<void>((resolve) => {
+          stream.on('close', resolve);
+        });
+
+        stream.write('q');
+        await closed;
+
+        expect(rawText()).toContain('Goodbye');
+      },
+    );
+  });
 });

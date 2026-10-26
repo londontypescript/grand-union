@@ -69,9 +69,12 @@ export function waitForEvent(
   event: string,
   timeoutMs: number,
 ): Promise<void> {
+  // Made here, not when the timer fires, so its stack names the test line
+  // that waited: a test with several waits on one event shows which failed.
+  const timedOut = new Error(`timed out waiting for "${event}" after ${String(timeoutMs)}ms`);
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
-      reject(new Error(`timed out waiting for "${event}" after ${String(timeoutMs)}ms`));
+      reject(timedOut);
     }, timeoutMs);
     emitter.once(event, () => {
       clearTimeout(timer);

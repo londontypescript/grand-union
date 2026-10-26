@@ -54,133 +54,113 @@ function rawSocket(port: number): net.Socket {
   return socket;
 }
 
-describe('ssh limits', () => {
-  it(
-    'refuses a connection past the connection cap, then accepts once one closes',
-    async () => {
-      const { server } = createServer(testOptions({ maxConnections: 1 }));
-      const port = await listen(server);
-      const first = new Client();
-      const third = new Client();
-      let second: net.Socket | undefined;
+describe('ssh limits', { timeout: TEST_TIMEOUT_MS }, () => {
+  it('refuses a connection past the connection cap, then accepts once one closes', async () => {
+    const { server } = createServer(testOptions({ maxConnections: 1 }));
+    const port = await listen(server);
+    const first = new Client();
+    const third = new Client();
+    let second: net.Socket | undefined;
 
-      try {
-        await connectReady(first, port);
+    try {
+      await connectReady(first, port);
 
-        second = rawSocket(port);
-        await waitForEvent(second, 'close', GENEROUS_MS);
+      second = rawSocket(port);
+      await waitForEvent(second, 'close', GENEROUS_MS);
 
-        first.end();
-        await waitForEvent(first, 'close', GENEROUS_MS);
+      first.end();
+      await waitForEvent(first, 'close', GENEROUS_MS);
 
-        await connectReady(third, port);
-      } finally {
-        first.destroy();
-        second?.destroy();
-        third.destroy();
-        await closeServer(server);
-      }
-    },
-    TEST_TIMEOUT_MS,
-  );
+      await connectReady(third, port);
+    } finally {
+      first.destroy();
+      second?.destroy();
+      third.destroy();
+      await closeServer(server);
+    }
+  });
 
-  it(
-    'closes a connection that never completes the handshake',
-    async () => {
-      const { server } = createServer(testOptions({ handshakeTimeoutMs: 150 }));
-      const port = await listen(server);
-      const socket = rawSocket(port);
+  it('closes a connection that never completes the handshake', async () => {
+    const { server } = createServer(testOptions({ handshakeTimeoutMs: 150 }));
+    const port = await listen(server);
+    const socket = rawSocket(port);
 
-      try {
-        await waitForEvent(socket, 'close', GENEROUS_MS);
-      } finally {
-        socket.destroy();
-        await closeServer(server);
-      }
-    },
-    TEST_TIMEOUT_MS,
-  );
+    try {
+      await waitForEvent(socket, 'close', GENEROUS_MS);
+    } finally {
+      socket.destroy();
+      await closeServer(server);
+    }
+  });
 
-  it(
-    'disconnects an authenticated connection that never opens a shell',
-    async () => {
-      const { server } = createServer(testOptions({ preShellTimeoutMs: 150 }));
-      const port = await listen(server);
-      const client = new Client();
+  it('disconnects an authenticated connection that never opens a shell', async () => {
+    const { server } = createServer(testOptions({ preShellTimeoutMs: 150 }));
+    const port = await listen(server);
+    const client = new Client();
 
-      try {
-        await connectReady(client, port);
-        await waitForEvent(client, 'close', GENEROUS_MS);
-      } finally {
-        client.destroy();
-        await closeServer(server);
-      }
-    },
-    TEST_TIMEOUT_MS,
-  );
+    try {
+      await connectReady(client, port);
+      await waitForEvent(client, 'close', GENEROUS_MS);
+    } finally {
+      client.destroy();
+      await closeServer(server);
+    }
+  });
 
-  it(
-    're-arms the pre-shell timer once the only open shell ends',
-    async () => {
-      // The same deadline also runs before the shell opens, so it has to
-      // outlast opening one on a slow CI runner; 150 ms did not. Without the
-      // re-arm the connection never closes, so a longer deadline still proves it.
-      // The wait for that close is ten times the deadline it waits out.
-      const { server } = createServer(testOptions({ preShellTimeoutMs: PRE_SHELL_MS }));
-      const port = await listen(server);
-      const client = new Client();
+  it('re-arms the pre-shell timer once the only open shell ends', async () => {
+    // The same deadline also runs before the shell opens, so it has to
+    // outlast opening one on a slow CI runner; 150 ms did not. Without the
+    // re-arm the connection never closes, so a longer deadline still proves it.
+    // The wait for that close is ten times the deadline it waits out.
+    const { server } = createServer(testOptions({ preShellTimeoutMs: PRE_SHELL_MS }));
+    const port = await listen(server);
+    const client = new Client();
 
-      try {
-        await connectReady(client, port);
-        const stream = await openShell(client);
-        await waitForEvent(stream, 'data', GENEROUS_MS);
+    try {
+      await connectReady(client, port);
+      const stream = await openShell(client);
+      await waitForEvent(stream, 'data', GENEROUS_MS);
 
-        stream.write('q');
-        await waitForEvent(stream, 'close', GENEROUS_MS);
+      stream.write('q');
+      await waitForEvent(stream, 'close', GENEROUS_MS);
 
-        // The shell is gone but the connection is still open — the deadline
-        // should be running again, not left disarmed.
-        await waitForEvent(client, 'close', PRE_SHELL_MS * 10);
-      } finally {
-        client.destroy();
-        await closeServer(server);
-      }
-    },
-    TEST_TIMEOUT_MS + PRE_SHELL_MS * 10,
-  );
+      // The shell is gone but the connection is still open — the deadline
+      // should be running again, not left disarmed.
+      await waitForEvent(client, 'close', PRE_SHELL_MS * 10);
+    } finally {
+      client.destroy();
+      await closeServer(server);
+    }
+  });
 
-  it(
-    'rejects a second session channel beyond the per-connection cap, while the first still works',
-    async () => {
-      const { server } = createServer(testOptions({ maxSessionsPerConnection: 1 }));
-      const port = await listen(server);
-      const client = new Client();
+  it('rejects a second session channel beyond the per-connection cap, while the first still works', async () => {
+    const { server } = createServer(testOptions({ maxSessionsPerConnection: 1 }));
+    const port = await listen(server);
+    const client = new Client();
 
-      try {
-        await connectReady(client, port);
+    try {
+      await connectReady(client, port);
 
-        const firstStream = await openShell(client);
-        const secondError = await openShell(client).then(
-          () => undefined,
-          (error: unknown) => error,
-        );
-        expect(secondError).toBeInstanceOf(Error);
+      const firstStream = await openShell(client);
+      const secondError = await openShell(client).then(
+        () => undefined,
+        (error: unknown) => error,
+      );
+      expect(secondError).toBeInstanceOf(Error);
 
-        let firstClosed = false;
-        firstStream.on('close', () => {
-          firstClosed = true;
-        });
-        // The first channel keeps delivering the rendered page — proof it
-        // was never touched by the second channel's rejection.
-        await waitForEvent(firstStream, 'data', GENEROUS_MS);
-        expect(firstClosed).toBe(false);
-      } finally {
-        client.destroy();
-        await closeServer(server);
-      }
-    },
-    TEST_TIMEOUT_MS,
-  );
+      let firstClosed = false;
+      firstStream.on('close', () => {
+        firstClosed = true;
+      });
+      // The first channel keeps delivering the rendered page — proof it
+      // was never touched by the second channel's rejection.
+      await waitForEvent(firstStream, 'data', GENEROUS_MS);
+      expect(firstClosed).toBe(false);
+    } finally {
+      client.destroy();
+      await closeServer(server);
+    }
+  });
 });
 
 function openShell(client: SshClient): Promise<ClientChannel> {
