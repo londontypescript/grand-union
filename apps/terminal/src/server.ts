@@ -1,3 +1,4 @@
+import { resolvePorts } from '../../../scripts/ports.ts';
 import { resolveAlign } from './align.ts';
 import { createServer } from './create-server.ts';
 import { loadOrCreateHostKey } from './host-key.ts';
@@ -16,20 +17,24 @@ const PRE_SHELL_TIMEOUT_MS = 30_000;
 // without allowing unbounded channel-open spam on one connection.
 const MAX_SESSIONS_PER_CONNECTION = 2;
 
-function resolvePort(raw: string | undefined): number {
-  const port = Number(raw ?? 2222);
-  if (!Number.isInteger(port) || port < 1 || port > 65535) {
-    console.error(`[terminal] invalid PORT "${raw ?? ''}" — must be an integer from 1 to 65535`);
+// PORT, or LTS_PORT_BASE + 2, or 2222: the repo's one port resolver decides.
+function resolvePort(): number {
+  try {
+    return resolvePorts(process.env).ssh;
+  } catch (error) {
+    console.error(`[terminal] ${error instanceof Error ? error.message : String(error)}`);
     process.exit(1);
   }
-  return port;
 }
 
-const PORT = resolvePort(process.env['PORT']);
+const PORT = resolvePort();
+
+// Trusted operator configuration, like PORT: the path is used as given.
+const HOST_KEY_PATH = process.env['LTS_HOST_KEY_PATH'];
 
 const { server, shutdown } = createServer({
   align: resolveAlign(process.env['ALIGN']),
-  hostKey: loadOrCreateHostKey(),
+  hostKey: HOST_KEY_PATH === undefined ? loadOrCreateHostKey() : loadOrCreateHostKey(HOST_KEY_PATH),
   maxSessions: MAX_CONCURRENT_SESSIONS,
   maxConnections: MAX_CONNECTIONS,
   handshakeTimeoutMs: HANDSHAKE_TIMEOUT_MS,

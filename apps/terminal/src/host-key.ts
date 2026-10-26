@@ -13,8 +13,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 
 // `apps/terminal/.data` — already gitignored (see `.gitignore`), so the
 // generated private key never reaches version control.
-const DATA_DIR = path.resolve(here, '../.data');
-const HOST_KEY_PATH = path.join(DATA_DIR, 'host_ed25519');
+const DEFAULT_HOST_KEY_PATH = path.resolve(here, '../.data/host_ed25519');
 
 const MAX_KEY_GENERATION_ATTEMPTS = 10;
 
@@ -44,19 +43,20 @@ export function generateHostKey(generate: () => string = defaultGenerate): strin
  * Loads the server's persistent ed25519 host key, generating one on first
  * run so returning SSH clients don't see a host-key-changed warning between
  * restarts. Written with mode `0600` — a private key readable by anyone
- * else on the host defeats the point of having one.
+ * else on the host defeats the point of having one. `keyPath` lets a test
+ * or an operator keep the key somewhere other than `apps/terminal/.data`.
  */
-export function loadOrCreateHostKey(): string {
-  if (existsSync(HOST_KEY_PATH)) {
-    const key = readFileSync(HOST_KEY_PATH, 'utf8');
+export function loadOrCreateHostKey(keyPath: string = DEFAULT_HOST_KEY_PATH): string {
+  if (existsSync(keyPath)) {
+    const key = readFileSync(keyPath, 'utf8');
     if (utils.parseKey(key) instanceof Error) {
-      throw new Error(`Host key at ${HOST_KEY_PATH} is not a valid private key`);
+      throw new Error(`Host key at ${keyPath} is not a valid private key`);
     }
     return key;
   }
 
-  mkdirSync(DATA_DIR, { recursive: true });
+  mkdirSync(path.dirname(keyPath), { recursive: true });
   const key = generateHostKey();
-  writeFileSync(HOST_KEY_PATH, key, { mode: 0o600 });
+  writeFileSync(keyPath, key, { mode: 0o600 });
   return key;
 }
