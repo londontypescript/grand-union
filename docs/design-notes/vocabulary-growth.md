@@ -40,8 +40,9 @@ removing exactly the compiler errors that do the teaching.
 `Vocabulary`. A member can publish `@their-name/renderer-plaintext` from their
 own repo against the published contract. That is a better ask for an
 experienced contributor than "send us a PR", and it is an argument for
-publishing `@lts/vocabulary` to npm earlier than `PLAN.md` currently assumes —
-today the plan parks publication until a second project needs it.
+publishing `@lts/vocabulary` to npm earlier than the prototype's plan assumed —
+it parked publication until a second project needed it. When to publish is
+now this repository's issue #25.
 
 ## Cost grows per primitive, not per page
 

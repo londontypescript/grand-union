@@ -40,8 +40,9 @@ export const home: Page = (ui, { align }) => (
 ```
 
 See [`docs/architecture.md`](docs/architecture.md) for what exists and how
-it fits together, and [`docs/adr/`](docs/adr/) for the decisions behind it —
-starting with why registries were chosen over platform-extension resolution.
+it fits together. The decisions behind it are ADRs in [`docs/adr/`](docs/adr/),
+each arriving with the code it describes: the React version rules with the
+workspace catalog, the rest from Phase 2 (#3).
 
 ## Status
 

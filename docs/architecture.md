@@ -2,9 +2,9 @@
 
 One closed vocabulary of semantic components, rendered by three React
 renderers — `react-dom`, `react-three-fiber` and `ink` (served over SSH) — plus
-an Electron shell around the dom build. `PLAN.md` explains why; this file says
-what exists and how it fits together. Decisions with alternatives live in
-`docs/adr/`.
+an Electron shell around the dom build. This repository's issues say why and
+what comes next; this file says what exists and how it fits together.
+Decisions with alternatives live in `docs/adr/`.
 
 The code is being ported here from a prototype, one phase per issue: the
 vocabulary, pages, renderer-dom and contract tests in Phase 2 (#3), the web
@@ -225,7 +225,12 @@ and mount the result on its renderer.
 | The SSH server's connection and session limits hold             | `apps/terminal/src/ssh-limits.test.ts`                                                      | Phase 3b, #5 |
 | `shutdown()` ends every session gracefully, within its deadline | `apps/terminal/src/ssh-shutdown.test.ts`                                                    | Phase 3b, #5 |
 | Electron loads the page                                         | `tests/render` via Playwright's Electron launcher                                           | Phase 5, #8  |
-| No code reaches into another object's `_`-prefixed members      | ESLint `no-restricted-syntax` on `apps/` and `packages/` (`eslint.config.js`)               | Phase 1, #2  |
+| No `_`-prefixed member access as `obj._x` or `obj['_x']`        | ESLint `no-restricted-syntax` on `apps/` and `packages/` (`eslint.config.js`)               | Phase 1, #2  |
+
+The private-member rule matches exactly those two spellings. A
+template-literal key (``obj[`_x`]``) or destructuring (`const { _x } = obj`)
+gets past it, and it flags an object's own `_`-prefixed members as well as
+another library's: private state of our own belongs in `#private` fields.
 
 `pnpm gate` (temple-bar's gate) is the single gate, run identically locally
 and in CI: format, lint, typecheck and tests in the root and every workspace

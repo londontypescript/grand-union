@@ -47,8 +47,9 @@ body:
       label: Does this grow the layout vocabulary?
       description: >
         If this adds a new closed-union layout option (rather than a content
-        component), say so explicitly. The kill criterion from PLAN.md
-        applies: if a page can't be expressed in r3f without the layout
+        component), say so explicitly. The project's kill criterion, recorded
+        in ADR 0002 (which arrives with Phase 2, issue #3), applies: if a
+        page can't be expressed in r3f without the layout
         vocabulary growing past roughly a dozen options, the abstraction is
         wrong — that's a reason to reconsider the proposal, not to raise the
         limit.

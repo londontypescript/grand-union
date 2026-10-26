@@ -65,8 +65,11 @@ security updates**. `.github/dependabot.yml` only schedules routine version
 updates (monthly); these two settings are what raise an alert and open a
 fix PR as soon as an advisory affects a dependency.
 
-**Verify:** `gh api repos/londontypescript/grand-union/automated-security-fixes`
-returns `"enabled": true`, and the Security tab lists Dependabot alerts.
+**Verify:** for security updates,
+`gh api repos/londontypescript/grand-union/automated-security-fixes` answers
+HTTP 200 with `{"enabled":true,"paused":false}`. For alerts,
+`gh api -i repos/londontypescript/grand-union/vulnerability-alerts` answers
+HTTP 204 with no body when they're on, and 404 when they're off.
 
 ## Private vulnerability reporting
 
@@ -85,9 +88,10 @@ link resolves to something useful.
 
 ## Claim the `@lts` npm org
 
-Packages are named `@lts/*` (see `PLAN.md`). Claim the `lts` scope on
-npmjs.com under an account or org the maintainer team controls, before the
-first package is published from CI — an unclaimed scope that someone else
+Packages are named `@lts/*` (see `docs/architecture.md`). Claim the `lts`
+scope on npmjs.com under an account or org the maintainer team controls,
+before the first package is published from CI (issue #25 decides when) — an
+unclaimed scope that someone else
 registers first is not recoverable without a dispute.
 
 **Verify:** `npm org ls lts` (or the npmjs.com org page) shows the org and
