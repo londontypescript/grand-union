@@ -3,13 +3,27 @@ import type { Client as SshClient, ClientChannel } from 'ssh2';
 import ssh2 from 'ssh2';
 import { describe, expect, it } from 'vitest';
 import { createServer, type CreateServerOptions } from './create-server.ts';
-import { HOST, NOOP_LOG, connectReady, generateHostKey, listen } from './ssh-test-support.ts';
+import {
+  HOST,
+  NOOP_LOG,
+  closeServer,
+  connectReady,
+  generateHostKey,
+  listen,
+} from './ssh-test-support.ts';
 
 // See `host-key.ts`/`create-server.ts` for why this is a default-import
 // destructure rather than a named import.
 const { Client } = ssh2;
 
 const GENEROUS_MS = 2000;
+// The deadlines a test isn't about: far beyond any wait it makes, so one of
+// them firing can never stand in for the shutdown under test.
+const UNRELATED_MS = 60_000;
+// Above each test's own waits (connecting is bounded at 5 s) plus cleanup
+// (closing the server is bounded at 5 s), so a broken shutdown fails with
+// its own message, never with Vitest's timeout.
+const TEST_TIMEOUT_MS = 30_000;
 
 /** Generous defaults for every limit but the one each test overrides. */
 function testOptions(overrides: Partial<CreateServerOptions> = {}): CreateServerOptions {
@@ -18,8 +32,8 @@ function testOptions(overrides: Partial<CreateServerOptions> = {}): CreateServer
     hostKey: generateHostKey(),
     maxSessions: 4,
     maxConnections: 4,
-    handshakeTimeoutMs: GENEROUS_MS,
-    preShellTimeoutMs: GENEROUS_MS,
+    handshakeTimeoutMs: UNRELATED_MS,
+    preShellTimeoutMs: UNRELATED_MS,
     maxSessionsPerConnection: 2,
     log: NOOP_LOG,
     ...overrides,
@@ -109,90 +123,125 @@ async function waitForServerToAccept(server: net.Server, ms: number): Promise<vo
   }
 }
 
-describe('ssh shutdown', () => {
-  it('says goodbye and closes the channel and connection for an open shell, then refuses new connections', async () => {
-    const { server, shutdown } = createServer(testOptions());
-    const port = await listen(server);
-    const client = new Client();
+/** Closes `server` if a failure left it listening; `shutdown` normally closes it. */
+async function closeIfListening(server: net.Server): Promise<void> {
+  if (server.listening) {
+    await closeServer(server);
+  }
+}
 
-    try {
-      await connectReady(client, port);
-      const stream = await openShell(client);
-      await withTimeout(
-        new Promise<void>((resolve) => {
-          stream.once('data', () => {
+describe('ssh shutdown', () => {
+  it(
+    'says goodbye and closes the channel and connection for an open shell, then refuses new connections',
+    async () => {
+      const { server, shutdown } = createServer(testOptions());
+      const port = await listen(server);
+      const client = new Client();
+      const refused = new Client();
+
+      try {
+        await connectReady(client, port);
+        const stream = await openShell(client);
+        await withTimeout(
+          new Promise<void>((resolve) => {
+            stream.once('data', () => {
+              resolve();
+            });
+          }),
+          GENEROUS_MS,
+          'first shell data',
+        );
+
+        let goodbye = '';
+        stream.on('data', (chunk: Buffer) => {
+          goodbye += chunk.toString('utf8');
+        });
+
+        const channelClosed = waitForClose(stream, GENEROUS_MS, 'channel close');
+        const clientClosed = waitForClose(client, GENEROUS_MS, 'client close');
+
+        await withTimeout(shutdown(), GENEROUS_MS, 'shutdown');
+
+        await channelClosed;
+        await clientClosed;
+        expect(goodbye).toContain('Goodbye');
+
+        const refusal = new Promise<void>((resolve, reject) => {
+          refused.on('error', () => {
             resolve();
           });
-        }),
-        GENEROUS_MS,
-        'first shell data',
-      );
+          refused.on('ready', () => {
+            reject(new Error('expected the new connection to be refused'));
+          });
+        });
+        refused.connect({
+          host: HOST,
+          port,
+          username: 'test',
+          password: 'test',
+          readyTimeout: 500,
+        });
+        await withTimeout(refusal, GENEROUS_MS, 'new connection refusal');
+      } finally {
+        client.destroy();
+        refused.destroy();
+        await closeIfListening(server);
+      }
+    },
+    TEST_TIMEOUT_MS,
+  );
 
-      let goodbye = '';
-      stream.on('data', (chunk: Buffer) => {
-        goodbye += chunk.toString('utf8');
-      });
+  it(
+    'closes an authenticated connection that has no open shell',
+    async () => {
+      const { server, shutdown } = createServer(testOptions());
+      const port = await listen(server);
+      const client = new Client();
 
-      const channelClosed = waitForClose(stream, GENEROUS_MS, 'channel close');
-      const clientClosed = waitForClose(client, GENEROUS_MS, 'client close');
+      try {
+        await connectReady(client, port);
+        const clientClosed = waitForClose(client, GENEROUS_MS, 'client close');
 
-      await withTimeout(shutdown(), GENEROUS_MS, 'shutdown');
+        await withTimeout(shutdown(), GENEROUS_MS, 'shutdown');
 
-      await channelClosed;
-      await clientClosed;
-      expect(goodbye).toContain('Goodbye');
+        await clientClosed;
+      } finally {
+        client.destroy();
+        await closeIfListening(server);
+      }
+    },
+    TEST_TIMEOUT_MS,
+  );
 
-      const refused = new Client();
-      const refusal = new Promise<void>((resolve, reject) => {
-        refused.on('error', () => {
+  it(
+    'resolves within the deadline even when a client never closes its own side',
+    async () => {
+      // A generous handshake timeout so the *deadline* is what ends the
+      // stuck socket — if it didn't, the test would still pass by luck via
+      // that unrelated timer, hiding a broken deadline.
+      const { server, shutdown } = createServer(testOptions({ shutdownDeadlineMs: 200 }));
+      const port = await listen(server);
+      const stuck = silentSocket(port);
+      const stuckClosed = new Promise<void>((resolve) => {
+        stuck.once('close', () => {
           resolve();
         });
-        refused.on('ready', () => {
-          reject(new Error('expected the new connection to be refused'));
-        });
       });
-      refused.connect({ host: HOST, port, username: 'test', password: 'test', readyTimeout: 500 });
-      await withTimeout(refusal, GENEROUS_MS, 'new connection refusal');
-    } finally {
-      client.end();
-    }
-  });
 
-  it('closes an authenticated connection that has no open shell', async () => {
-    const { server, shutdown } = createServer(testOptions());
-    const port = await listen(server);
-    const client = new Client();
+      try {
+        await waitForServerToAccept(server, GENEROUS_MS);
 
-    try {
-      await connectReady(client, port);
-      const clientClosed = waitForClose(client, GENEROUS_MS, 'client close');
-
-      await withTimeout(shutdown(), GENEROUS_MS, 'shutdown');
-
-      await clientClosed;
-    } finally {
-      client.end();
-    }
-  });
-
-  it('resolves within the deadline even when a client never closes its own side', async () => {
-    // A generous handshake timeout so the *deadline* is what ends the
-    // stuck socket — if it didn't, the test would still pass by luck via
-    // that unrelated timer, hiding a broken deadline.
-    const { server, shutdown } = createServer(
-      testOptions({ shutdownDeadlineMs: 200, handshakeTimeoutMs: 10_000 }),
-    );
-    const port = await listen(server);
-    const stuck = silentSocket(port);
-
-    try {
-      await waitForServerToAccept(server, GENEROUS_MS);
-
-      const started = Date.now();
-      await withTimeout(shutdown(), GENEROUS_MS, 'shutdown');
-      expect(Date.now() - started).toBeLessThan(GENEROUS_MS);
-    } finally {
-      stuck.destroy();
-    }
-  });
+        const started = Date.now();
+        await withTimeout(shutdown(), GENEROUS_MS, 'shutdown');
+        expect(Date.now() - started).toBeLessThan(GENEROUS_MS);
+        // Closed by the server once the deadline passed, not by this test's
+        // own cleanup below.
+        await withTimeout(stuckClosed, GENEROUS_MS, 'the server to close the stuck socket');
+      } finally {
+        stuck.destroy();
+        await closeIfListening(server);
+      }
+    },
+    TEST_TIMEOUT_MS,
+  );
 });

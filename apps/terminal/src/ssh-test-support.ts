@@ -19,9 +19,22 @@ export function listen(server: NetServer): Promise<number> {
   });
 }
 
+// How long a test's server may take to close once the test has destroyed
+// every client and socket it opened: far longer than closing takes, short
+// enough that a connection left open fails the test instead of hanging it.
+const CLOSE_TIMEOUT_MS = 5000;
+
 export function closeServer(server: NetServer): Promise<void> {
   return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(
+        new Error(
+          `timed out closing the server after ${String(CLOSE_TIMEOUT_MS)}ms: a connection is still open`,
+        ),
+      );
+    }, CLOSE_TIMEOUT_MS);
     server.close((error) => {
+      clearTimeout(timer);
       if (error) {
         reject(error);
       } else {

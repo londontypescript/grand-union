@@ -13,6 +13,10 @@ const { Client } = ssh2;
 const HEADER_TEXT = 'London TypeScript';
 const COLS = 100;
 const ROWS = 30;
+// Above each test's own waits (connecting and each stable frame are bounded
+// at 5 s and 4 s) plus cleanup (closing the server is bounded at 5 s), so a
+// broken render fails with its own message, never with Vitest's timeout.
+const TEST_TIMEOUT_MS = 30_000;
 
 type Size = Readonly<{ cols: number; rows: number }>;
 
@@ -24,13 +28,6 @@ interface Session {
   readonly flush: () => Promise<void>;
   readonly rawText: () => string;
   readonly resize: (size: Size) => void;
-}
-
-function endClient(client: SshClient): Promise<void> {
-  return new Promise((resolve) => {
-    client.on('close', resolve);
-    client.end();
-  });
 }
 
 function writeAsync(terminal: Terminal, data: string): Promise<void> {
@@ -111,7 +108,7 @@ async function withSession<T>(
     });
   } finally {
     terminal.dispose();
-    await endClient(client);
+    client.destroy();
     await closeServer(server);
   }
 }
@@ -235,58 +232,74 @@ const expectVerticalPlacement = {
 
 describe('ssh render', () => {
   for (const align of VERTICAL_ALIGN) {
-    it(`renders ${align} correctly over a real SSH pty`, async () => {
-      await withSession(align, { cols: COLS, rows: ROWS }, async ({ terminal, flush }) => {
-        const lines = await waitForStableLines(terminal, flush, (ls) =>
-          ls.some((line) => line.includes(HEADER_TEXT)),
-        );
+    it(
+      `renders ${align} correctly over a real SSH pty`,
+      async () => {
+        await withSession(align, { cols: COLS, rows: ROWS }, async ({ terminal, flush }) => {
+          const lines = await waitForStableLines(terminal, flush, (ls) =>
+            ls.some((line) => line.includes(HEADER_TEXT)),
+          );
 
-        const header = expectHeaderCentered(lines, COLS);
-        expectNoStaircase(firstParagraphLines(lines, header.row));
-        expectVerticalPlacement[align](lines);
-      });
-    });
+          const header = expectHeaderCentered(lines, COLS);
+          expectNoStaircase(firstParagraphLines(lines, header.row));
+          expectVerticalPlacement[align](lines);
+        });
+      },
+      TEST_TIMEOUT_MS,
+    );
   }
 
-  it('re-centers the header after a resize', async () => {
-    await withSession('middle', { cols: COLS, rows: ROWS }, async ({ terminal, flush, resize }) => {
-      await waitForStableLines(terminal, flush, (ls) =>
-        ls.some((line) => line.includes(HEADER_TEXT)),
+  it(
+    're-centers the header after a resize',
+    async () => {
+      await withSession(
+        'middle',
+        { cols: COLS, rows: ROWS },
+        async ({ terminal, flush, resize }) => {
+          await waitForStableLines(terminal, flush, (ls) =>
+            ls.some((line) => line.includes(HEADER_TEXT)),
+          );
+
+          const newSize = { cols: 60, rows: ROWS };
+          resize(newSize);
+
+          const lines = await waitForStableLines(terminal, flush, (ls) => {
+            const header = findHeader(ls);
+            if (!header) {
+              return false;
+            }
+            return Math.abs(header.column - (newSize.cols - HEADER_TEXT.length) / 2) <= 1;
+          });
+
+          expectHeaderCentered(lines, newSize.cols);
+        },
       );
+    },
+    TEST_TIMEOUT_MS,
+  );
 
-      const newSize = { cols: 60, rows: ROWS };
-      resize(newSize);
+  it(
+    'ends the session and says goodbye when the client sends q',
+    async () => {
+      await withSession(
+        'middle',
+        { cols: COLS, rows: ROWS },
+        async ({ terminal, flush, stream, rawText }) => {
+          await waitForStableLines(terminal, flush, (ls) =>
+            ls.some((line) => line.includes(HEADER_TEXT)),
+          );
 
-      const lines = await waitForStableLines(terminal, flush, (ls) => {
-        const header = findHeader(ls);
-        if (!header) {
-          return false;
-        }
-        return Math.abs(header.column - (newSize.cols - HEADER_TEXT.length) / 2) <= 1;
-      });
+          const closed = new Promise<void>((resolve) => {
+            stream.on('close', resolve);
+          });
 
-      expectHeaderCentered(lines, newSize.cols);
-    });
-  });
+          stream.write('q');
+          await closed;
 
-  it('ends the session and says goodbye when the client sends q', async () => {
-    await withSession(
-      'middle',
-      { cols: COLS, rows: ROWS },
-      async ({ terminal, flush, stream, rawText }) => {
-        await waitForStableLines(terminal, flush, (ls) =>
-          ls.some((line) => line.includes(HEADER_TEXT)),
-        );
-
-        const closed = new Promise<void>((resolve) => {
-          stream.on('close', resolve);
-        });
-
-        stream.write('q');
-        await closed;
-
-        expect(rawText()).toContain('Goodbye');
-      },
-    );
-  });
+          expect(rawText()).toContain('Goodbye');
+        },
+      );
+    },
+    TEST_TIMEOUT_MS,
+  );
 });
