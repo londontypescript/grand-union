@@ -1,0 +1,25 @@
+{
+  "name": "@lts/renderer-ink",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/registry.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint .",
+    "format:check": "prettier --check .",
+    "test": "vitest run --root ../.. --project unit packages/renderer-ink/"
+  },
+  "dependencies": {
+    "@lts/vocabulary": "workspace:*",
+    "ink": "catalog:",
+    "react": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.6",
+    "@types/react": "catalog:",
+    "ink-testing-library": "4.0.0",
+    "typescript": "catalog:"
+  }
+}

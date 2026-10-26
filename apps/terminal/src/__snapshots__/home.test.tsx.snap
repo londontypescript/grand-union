@@ -1,0 +1,82 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`home renders through the ink registry > matches the bottom snapshot at 80x24 1`] = `
+"
+
+
+
+
+
+
+
+
+
+
+
+                               London TypeScript
+
+    One vocabulary, three renderers: this page is defined once against
+    \`Stack\`, \`Header\`, \`Paragraph\`, \`DividingLine\` and \`Quote\`, then
+    rendered by react-dom, react-three-fiber and Ink without being rewritten
+    for any of them.
+
+    ────────────────────────────────────────────────────────────────────────
+
+      ssh -p 2222 londontypescript.org to see this page rendered as text.
+
+                     │ Write it once, render it everywhere."
+`;
+
+exports[`home renders through the ink registry > matches the middle snapshot at 80x24 1`] = `
+"
+
+
+
+
+
+                               London TypeScript
+
+    One vocabulary, three renderers: this page is defined once against
+    \`Stack\`, \`Header\`, \`Paragraph\`, \`DividingLine\` and \`Quote\`, then
+    rendered by react-dom, react-three-fiber and Ink without being rewritten
+    for any of them.
+
+    ────────────────────────────────────────────────────────────────────────
+
+      ssh -p 2222 londontypescript.org to see this page rendered as text.
+
+                     │ Write it once, render it everywhere.
+
+
+
+
+
+"
+`;
+
+exports[`home renders through the ink registry > matches the top snapshot at 80x24 1`] = `
+"                               London TypeScript
+
+    One vocabulary, three renderers: this page is defined once against
+    \`Stack\`, \`Header\`, \`Paragraph\`, \`DividingLine\` and \`Quote\`, then
+    rendered by react-dom, react-three-fiber and Ink without being rewritten
+    for any of them.
+
+    ────────────────────────────────────────────────────────────────────────
+
+      ssh -p 2222 londontypescript.org to see this page rendered as text.
+
+                     │ Write it once, render it everywhere.
+
+
+
+
+
+
+
+
+
+
+
+"
+`;
