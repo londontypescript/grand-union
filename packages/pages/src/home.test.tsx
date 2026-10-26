@@ -16,12 +16,12 @@ const fakeUi = {
 
 const stubs: ReadonlySet<unknown> = new Set(Object.values(fakeUi));
 
-type Element = ReactElement<{ readonly children?: ReactNode }>;
+type TreeElement = ReactElement<{ readonly children?: ReactNode }>;
 
 // Every element in the tree, depth first, and the strings among their
 // children, in reading order.
-function walk(node: ReactNode): { elements: Element[]; texts: string[] } {
-  const elements: Element[] = [];
+function walk(node: ReactNode): { elements: TreeElement[]; texts: string[] } {
+  const elements: TreeElement[] = [];
   const texts: string[] = [];
   Children.forEach(node, (child) => {
     if (typeof child === 'string') {
