@@ -88,13 +88,13 @@ describe('node scripts/ports.ts', () => {
   it('exits 1 with the usage when no name is given', () => {
     const result = run([]);
     expect(result).toMatchObject({ code: 1, stdout: '' });
-    expect(result.stderr).toContain('usage: node scripts/ports.ts <web|scene|ssh|');
+    expect(result.stderr).toContain('ports: usage: node scripts/ports.ts <web|scene|ssh|');
   });
 
   it('exits 1 with the usage when given more than one name', () => {
     const result = run(['web', 'scene']);
     expect(result).toMatchObject({ code: 1, stdout: '' });
-    expect(result.stderr).toContain('usage: node scripts/ports.ts');
+    expect(result.stderr).toContain('ports: usage: node scripts/ports.ts');
   });
 
   it('exits 1 naming an unknown port', () => {
