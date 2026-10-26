@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  // The root's own TypeScript: tool config and the scripts every package's
+  // dev, preview and test commands run. Each package has its own tsconfig.
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"],
+    // Node runs scripts/*.ts directly by stripping their types, which only
+    // works for syntax that erases to plain JavaScript.
+    "erasableSyntaxOnly": true
+  },
+  "include": ["vitest.config.ts", "scripts/**/*.ts"]
+}
