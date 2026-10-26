@@ -38,8 +38,9 @@ updates:
           - 'three'
           - '@types/three'
           - 'ink'
-      # temple-bar's judge refuses a pull request that bumps the pinned
-      # temple-bar alongside anything else, so it always gets its own.
+      # A bump of the pinned temple-bar belongs in a pull request of its own:
+      # the judge refuses every one, so the maintainer merges it, and nothing
+      # else should ride along with it.
       temple-bar:
         patterns:
           - '@londontypescript/temple-bar'
