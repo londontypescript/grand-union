@@ -3,6 +3,33 @@
 These rules bind every agent and person working in this repo. This
 project's own rules go here, outside temple-bar's block below.
 
+## grand-union
+
+Read [docs/architecture.md](docs/architecture.md) and
+[CONTRIBUTING.md](CONTRIBUTING.md) before changing code: they give the
+reasons, this is the checklist. The repo is public: write for someone who
+wasn't in the room when it was decided.
+
+- **Dependency direction.** The vocabulary is depended on and depends on
+  nothing above it; renderers never import pages; pages never import a
+  renderer registry. If a change doesn't fit, stop and reconsider; never
+  route around it.
+- **Vocabulary rules.** Pages use `ui.*` only, never an intrinsic JSX
+  element or a renderer import. Closed unions are consumed through
+  `satisfies Record<Union, …>`, never `switch`: a `switch` compiles with a
+  case missing, the total map doesn't. Text leaves take `string`, never
+  `ReactNode`. Nothing enters the vocabulary that r3f can't honour: r3f is
+  the arbiter, not dom or ink.
+- **An ADR replacing another** states the condition that ended the old one
+  (scale, usage, a requirement that didn't exist before), so nobody quietly
+  reverts a decision that was made on purpose.
+- **A doc or comment claiming enforcement** names the check that does it
+  (the lint rule, the test file), never just asserts it.
+- **Verified means through the target's real transport:** a browser, an
+  Electron window, a real `ssh` session, never only a unit-level stand-in.
+- **A refusal is a stop, not a detour:** a check, hook or permission that
+  refuses something is reported, never worked around.
+
 <!-- BEGIN:temple-bar: setup rewrites this block; edit outside it -->
 
 ## Start here
