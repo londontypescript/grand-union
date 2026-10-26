@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dev:web": "pnpm --filter @lts/web dev",
+    "dev:scene": "pnpm --filter @lts/scene dev",
     "typecheck": "tsc -p tsconfig.json",
     "lint": "eslint .",
     "format": "prettier --write .",

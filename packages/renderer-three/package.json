@@ -1,0 +1,28 @@
+{
+  "name": "@lts/renderer-three",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/registry.ts",
+    "./Surface": "./src/Surface.tsx"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint .",
+    "format:check": "prettier --check .",
+    "test": "vitest run --root ../.. --project unit packages/renderer-three/"
+  },
+  "dependencies": {
+    "@lts/vocabulary": "workspace:*",
+    "@react-three/drei": "catalog:",
+    "@react-three/fiber": "catalog:",
+    "@react-three/uikit": "catalog:",
+    "react": "catalog:",
+    "three": "catalog:"
+  },
+  "devDependencies": {
+    "@types/react": "catalog:",
+    "@types/three": "catalog:",
+    "typescript": "catalog:"
+  }
+}
