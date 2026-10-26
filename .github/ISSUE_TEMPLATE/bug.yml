@@ -1,0 +1,44 @@
+name: Bug report
+description: Something in one of the renderers or apps isn't behaving as it should.
+labels: [bug]
+body:
+  - type: dropdown
+    id: target
+    attributes:
+      label: Target
+      description: Which renderer or app does this affect?
+      options:
+        - web (react-dom)
+        - scene (react-three-fiber)
+        - terminal (ink over SSH)
+        - desktop (Electron)
+        - not renderer-specific
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Exact commands, URLs, or SSH invocation, in order.
+      placeholder: |
+        1. pnpm dev:web
+        2. Open http://localhost:5173/?align=bottom
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+      description: Include error text, a screenshot, or terminal output if you have it.
+    validations:
+      required: true

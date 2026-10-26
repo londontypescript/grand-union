@@ -1,0 +1,52 @@
+version: 2
+updates:
+  # Every update's commit message, and so its pull request title, starts
+  # `chore`: temple-bar's title check takes only a conventional prefix.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: chore
+
+  # Routine version updates only. Security fixes don't wait for this
+  # schedule: Dependabot security updates (a repository setting, see
+  # docs/github-settings.md) open a PR as soon as an advisory is published.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: chore
+    ignore:
+      # Node's types must match the Node major in .nvmrc; bump both by hand.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
+    groups:
+      # ADR 0004: React is pinned to the narrow intersection of r3f's and
+      # Ink's peer ranges, with strictPeerDependencies: true — these move
+      # together or not at all, never split across separate PRs. Before
+      # merging one: see the render checks pass (CI's render job, from
+      # Phase 5, #8) and check the new versions against ADR 0005's window.
+      renderer-stack:
+        patterns:
+          - 'react'
+          - 'react-dom'
+          - '@types/react'
+          - '@types/react-dom'
+          - '@react-three/*'
+          - 'three'
+          - '@types/three'
+          - 'ink'
+      npm-dependencies:
+        exclude-patterns:
+          - 'react'
+          - 'react-dom'
+          - '@types/react'
+          - '@types/react-dom'
+          - '@react-three/*'
+          - 'three'
+          - '@types/three'
+          - 'ink'
+        patterns:
+          - '*'
