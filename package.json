@@ -7,6 +7,7 @@
     "node": ">=24.2"
   },
   "scripts": {
+    "dev:web": "pnpm --filter @lts/web dev",
     "typecheck": "tsc -p tsconfig.json",
     "lint": "eslint .",
     "format": "prettier --write .",
