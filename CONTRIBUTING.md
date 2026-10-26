@@ -24,8 +24,7 @@ registries that each implement it (`@lts/renderer-dom`, `@lts/renderer-three`,
 (`@lts/pages`), and apps that wire a page to a registry. Dependency direction
 is one-way — vocabulary is depended on, never the other way round — and
 that's enforced by ESLint's `no-restricted-imports` (`eslint.config.js`), not
-just documented. Those rules arrive with the packages they govern, in
-Phase 2 (#3).
+just documented.
 
 ## Changing the vocabulary
 

@@ -6,9 +6,9 @@ an Electron shell around the dom build. This repository's issues say why and
 what comes next; this file says what exists and how it fits together.
 Decisions with alternatives live in `docs/adr/`.
 
-The code is being ported here from a prototype, one phase per issue: the
-vocabulary, pages, renderer-dom and contract tests in Phase 2 (#3), the web
-app in 3a (#4), renderer-ink and the terminal in 3b (#5), renderer-three and
+The code is being ported here from a prototype, one phase per issue. The
+vocabulary, pages, renderer-dom and contract tests are here; the web app
+arrives in 3a (#4), renderer-ink and the terminal in 3b (#5), renderer-three and
 the scene in 3c (#6), the desktop shell in 4 (#7) and the render checks in 5
 (#8). Until its phase merges, a part described here, and the check that
 covers it, exists only in the prototype.
@@ -159,10 +159,10 @@ on `@lts/vocabulary` and `react` types.
 **Where types stop.** `Stack`'s `children: ReactNode` would still accept
 `<div>` or `<mesh>` — TypeScript gives every JSX element the same type, so no
 signature can reject an intrinsic element. That hole is closed by lint instead:
-ESLint forbids intrinsic (lowercase) JSX elements in `packages/pages` (from
-Phase 2, #3). Types prove _totality_ (every component exists everywhere);
-they cannot prove _behavioural correspondence_ (a component can type-check
-and render nothing). That is what `tests/render` is for.
+ESLint forbids intrinsic (lowercase) JSX elements in `packages/pages`. Types
+prove _totality_ (every component exists everywhere); they cannot prove
+_behavioural correspondence_ (a component can type-check and render nothing).
+That is what `tests/render` is for.
 
 ## Apps
 
