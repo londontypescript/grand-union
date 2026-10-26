@@ -4,7 +4,7 @@ import path from 'node:path';
 const here = path.dirname(fileURLToPath(import.meta.url));
 
 /** Absolute path to the repo root, computed from this file's own location. */
-export const REPO_ROOT = path.resolve(here, '../../..');
+const REPO_ROOT = path.resolve(here, '../../..');
 
 export function fromRoot(...segments: string[]): string {
   return path.join(REPO_ROOT, ...segments);
