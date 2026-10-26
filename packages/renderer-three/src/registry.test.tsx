@@ -62,9 +62,13 @@ describe('three text leaves', () => {
     const quote = element(three.Quote({ children: 'Write it once.' }));
 
     expect(quote.type).toBe(Container);
-    expect(quote.props).toMatchObject({ borderColor: theme.color.accent });
+    expect(quote.props).toMatchObject({ borderLeftWidth: 3, borderColor: theme.color.accent });
     const inner = element(quote.props.children);
     expect(inner.type).toBe(Text);
+    expect(inner.props).toMatchObject({
+      fontSize: theme.font.paragraph,
+      color: theme.color.foreground,
+    });
     expect(texts(quote)).toEqual(['Write it once.']);
   });
 
@@ -72,7 +76,12 @@ describe('three text leaves', () => {
     const line = element(three.DividingLine());
 
     expect(line.type).toBe(Container);
-    expect(line.props).toMatchObject({ backgroundColor: theme.color.accent });
+    expect(line.props).toMatchObject({
+      width: '100%',
+      height: 2,
+      opacity: 0.6,
+      backgroundColor: theme.color.accent,
+    });
     expect(texts(line)).toEqual([]);
   });
 });
