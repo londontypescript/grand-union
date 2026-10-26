@@ -10,7 +10,9 @@ import tseslint from 'typescript-eslint';
 // `injectSocket`. Both spellings are caught, `obj._name` and `obj['_name']`;
 // a computed key that is a variable (`obj[_name]`) and an import named with
 // `_` (Playwright's `_electron`) are not member access to a private name.
-// `#private` members are already a compile error.
+// Not caught: a template-literal key or destructuring. Caught too: an
+// object's own `_` members, so private state of our own uses `#private`
+// fields, which are already a compile error to reach from outside.
 const privateMemberAccess = [
   {
     selector: 'MemberExpression[computed=false] > Identifier.property[name=/^_/]',
@@ -53,10 +55,11 @@ export default tseslint.config(
   },
 
   // Type-aware linting, scoped to `src/**` — the directories each package's
-  // tsconfig.json actually `include`s, so `projectService` can resolve a
+  // tsconfig.json actually `include`s — and the root's `scripts/**`, which
+  // the root tsconfig.json includes, so `projectService` can resolve a
   // project for every file this applies to.
   {
-    files: ['**/src/**/*.{ts,tsx}'],
+    files: ['**/src/**/*.{ts,tsx}', 'scripts/**/*.ts'],
     extends: [...tseslint.configs.strictTypeChecked, ...tseslint.configs.stylisticTypeChecked],
     languageOptions: {
       parserOptions: {
