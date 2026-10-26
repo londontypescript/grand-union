@@ -1,0 +1,18 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`a missing registry key fails to compile > renderer-dom: removing DividingLine reports a diagnostic in registry.ts > renderer-dom/missing-key 1`] = `
+"Type '{ Stack: ({ align, children }: StackProps) => React.ReactElement; Header: ({ children }: HeaderProps) => React.ReactElement; Paragraph: ({ children }: ParagraphProps) => React.ReactElement; Quote: ({ children }: QuoteProps) => React.ReactElement; }' does not satisfy the expected type 'Vocabulary'.
+  Property 'DividingLine' is missing in type '{ Stack: ({ align, children }: StackProps) => React.ReactElement; Header: ({ children }: HeaderProps) => React.ReactElement; Paragraph: ({ children }: ParagraphProps) => React.ReactElement; Quote: ({ children }: QuoteProps) => React.ReactElement; }' but required in type 'Vocabulary'."
+`;
+
+exports[`a new VerticalAlign member fails every total map > adding 'stretch' to VERTICAL_ALIGN reports a diagnostic in every total map > renderer-dom/new-vertical-align-member 1`] = `
+"Type '{ top: "flex-start"; middle: "center"; bottom: "flex-end"; }' does not satisfy the expected type 'Record<"top" | "middle" | "bottom" | "stretch", JustifyContent | undefined>'.
+  Property 'stretch' is missing in type '{ top: "flex-start"; middle: "center"; bottom: "flex-end"; }' but required in type 'Record<"top" | "middle" | "bottom" | "stretch", JustifyContent | undefined>'."
+`;
+
+exports[`a new Vocabulary member fails every registry > adding ProbeComponent to Vocabulary reports a diagnostic in every discovered registry > renderer-dom/new-vocabulary-member 1`] = `
+"Type '{ Stack: ({ align, children }: StackProps) => React.ReactElement; Header: ({ children }: HeaderProps) => React.ReactElement; Paragraph: ({ children }: ParagraphProps) => React.ReactElement; DividingLine: () => React.ReactElement; Quote: ({ children }: QuoteProps) => React.ReactElement; }' does not satisfy the expected type 'Vocabulary'.
+  Property 'ProbeComponent' is missing in type '{ Stack: ({ align, children }: StackProps) => React.ReactElement; Header: ({ children }: HeaderProps) => React.ReactElement; Paragraph: ({ children }: ParagraphProps) => React.ReactElement; DividingLine: () => React.ReactElement; Quote: ({ children }: QuoteProps) => React.ReactElement; }' but required in type 'Vocabulary'."
+`;
+
+exports[`an excess registry key fails to compile > renderer-dom: a typo'd extra key reports a diagnostic in registry.ts > renderer-dom/excess-key 1`] = `"Object literal may only specify known properties, but 'DivdingLine' does not exist in type 'Vocabulary'. Did you mean to write 'DividingLine'?"`;

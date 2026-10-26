@@ -1,0 +1,16 @@
+{
+  "name": "@lts/contract-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint .",
+    "format:check": "prettier --check .",
+    "test": "vitest run --root ../.. --project contracts"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.6",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

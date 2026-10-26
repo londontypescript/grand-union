@@ -1,11 +1,10 @@
 # Adding a primitive
 
 A worked example: how `Quote` was added in `b9c5623`, in the prototype this
-repository is ported from. The files named here arrive with the port's
-phases: the vocabulary, pages and renderer-dom in Phase 2 (#3), renderer-ink
-and the terminal in Phase 3b (#5), renderer-three in Phase 3c (#6). Once
-they have, read along in the code. The rules behind each step are in
-[`CONTRIBUTING.md`](../CONTRIBUTING.md) § "Changing the vocabulary" and
+repository is ported from. The vocabulary, pages and renderer-dom are here;
+renderer-ink and the terminal arrive with Phase 3b (#5), renderer-three with
+Phase 3c (#6). Once they have, read along in the code. The rules behind each
+step are in [`CONTRIBUTING.md`](../CONTRIBUTING.md) § "Changing the vocabulary" and
 [`architecture.md`](architecture.md).
 
 A primitive is expensive on purpose: one entry in the contract costs one
@@ -16,9 +15,7 @@ one, open a vocabulary proposal issue first.
 ## 0. Can r3f honour it?
 
 `react-three-fiber` is the least capable renderer, and it decides what the
-vocabulary may contain (ADR 0002,
-`adr/0002-layout-vocabulary-is-the-yoga-intersection.md`, which arrives
-with Phase 2, #3).
+vocabulary may contain ([ADR 0002](adr/0002-layout-vocabulary-is-the-yoga-intersection.md)).
 A quote is text with a bar beside it, and `@react-three/uikit` can draw both,
 so it qualifies. A primitive that only dom or ink could render does not go in.
 
@@ -113,9 +110,8 @@ Read every diff before accepting it.
 - **Ink snapshots** (`apps/terminal/src/home.test.tsx`, Phase 3b, #5) change
   with the page. Once the new output is right:
   `npx vitest run -u apps/terminal/src/home.test.tsx`.
-- **Contract snapshots** (`tests/contracts`, Phase 2, #3) restate each
-  registry's type in their error text, so a new member changes them:
-  `npx vitest run -u tests/contracts`.
+- **Contract snapshots** (`tests/contracts`) restate each registry's type in
+  their error text, so a new member changes them: `npx vitest run -u tests/contracts`.
 - **The SSH render test** (`apps/terminal/src/ssh-render.test.ts`, Phase 3b,
   #5) checks the real terminal screen. With `Quote` it caught the
   wrapped-line space above, after the page's new wording happened to wrap at

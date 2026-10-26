@@ -105,5 +105,76 @@ export default tseslint.config(
     },
   },
 
+  // The dependency direction from docs/architecture.md. Each directory sets
+  // `no-restricted-imports` in exactly one block: flat config replaces a
+  // rule's options when two matching blocks both set it, rather than merging.
+  {
+    files: ['packages/vocabulary/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@lts/*', '@lts/*/**'],
+              message:
+                'vocabulary is the base of the dependency graph and may not import any other @lts/* package — see docs/architecture.md',
+            },
+          ],
+        },
+      ],
+    },
+  },
+
+  // The architecture rule: a page is a function of the vocabulary only.
+  // Every JSX element has the same TypeScript type regardless of its tag, so
+  // no signature can reject an intrinsic (`<div>`) element — this is the
+  // enforcement mechanism. It sets `no-restricted-syntax` after the
+  // private-member block, so it repeats `privateMemberAccess`.
+  {
+    files: ['packages/pages/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        ...privateMemberAccess,
+        {
+          selector: "JSXOpeningElement[name.type='JSXIdentifier'][name.name=/^[a-z]/]",
+          message:
+            'Pages may only use vocabulary components (ui.*). Intrinsic elements bypass the contract — see docs/architecture.md',
+        },
+      ],
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@lts/renderer-*', '@lts/renderer-*/**'],
+              message:
+                'pages depend on @lts/vocabulary only — a renderer registry is what pages+renderers meet in an app, not what a page imports — see docs/architecture.md',
+            },
+          ],
+        },
+      ],
+    },
+  },
+
+  {
+    files: ['packages/renderer-*/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@lts/pages', '@lts/renderer-*', '@lts/renderer-*/**'],
+              message:
+                'renderers never import pages, and never import another renderer — see docs/architecture.md',
+            },
+          ],
+        },
+      ],
+    },
+  },
+
   prettier,
 );
