@@ -1,17 +1,17 @@
 version: 2
 updates:
-  # Every update's commit message, and so its pull request title, starts
-  # `chore`: temple-bar's title check takes only a conventional prefix.
-  - package-ecosystem: github-actions
-    directory: /
-    schedule:
-      interval: weekly
-    commit-message:
-      prefix: chore
+  # No github-actions entry yet: the only workflows are temple-bar's, which
+  # the gate requires to match its own copies exactly, so a Dependabot bump of
+  # their actions would fail every time. They are updated by upgrading
+  # temple-bar. The project has no workflow of its own until the render
+  # checks' in Phase 5 (#8), which decides how that one's actions are kept
+  # current.
 
   # Routine version updates only. Security fixes don't wait for this
   # schedule: Dependabot security updates (a repository setting, see
   # docs/github-settings.md) open a PR as soon as an advisory is published.
+  # Every commit message, and so every pull request title, starts `chore`:
+  # temple-bar's title check takes only a conventional prefix.
   - package-ecosystem: npm
     directory: /
     schedule:
