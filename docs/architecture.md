@@ -185,11 +185,11 @@ and mount the result on its renderer.
   (a second `shell` request is refused), 64 concurrent shells, and a
   10-minute idle timeout per shell. A client's terminal size is capped at
   500×200; a shell channel is refused if the client's maximum packet size is
-  below 1 KiB (ssh2's write loop can't make progress below that); and a shell
-  whose unread output passes 1 MiB — in the ssh2 channel's queue or the
-  connection socket's — is ended (the connection destroyed for a socket
-  overrun), so one client can't make the server allocate or queue without
-  bound. The client's own text in a connection-error log line is escaped and
+  below 1 KiB (ssh2's write loop can't make progress below that); and when a
+  client's unread output passes 1 MiB — in the ssh2 channel's queue or the
+  connection socket's — the shell is ended and the whole connection
+  destroyed, so a client that stops reading can't make the server queue
+  without bound. The client's own text in a connection-error log line is escaped and
   cut to 200 characters. Host key
   generated on first run into `apps/terminal/.data/` (gitignored), or read
   from `LTS_HOST_KEY_PATH` when set, retried until ssh2 can parse it. Each
