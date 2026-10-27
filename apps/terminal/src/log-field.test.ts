@@ -23,10 +23,29 @@ describe('encodeLogField', () => {
     expect(encodeLogField('a\u2028b\u2029c')).toBe(String.raw`a\u{2028}b\u{2029}c`);
   });
 
-  it('escapes the bidi embeddings, overrides and isolates', () => {
-    expect(encodeLogField('\u202a\u202b\u202c\u202d\u202e\u2066\u2067\u2068\u2069')).toBe(
-      String.raw`\u{202a}\u{202b}\u{202c}\u{202d}\u{202e}\u{2066}\u{2067}\u{2068}\u{2069}`,
-    );
+  it('escapes every Unicode bidirectional control', () => {
+    // The whole Bidi_Control property: the arabic letter mark, the left- and
+    // right-to-left marks, the embeddings/overrides, and the isolates.
+    const bidiControls = [
+      '\u061c',
+      '\u200e',
+      '\u200f',
+      '\u202a',
+      '\u202b',
+      '\u202c',
+      '\u202d',
+      '\u202e',
+      '\u2066',
+      '\u2067',
+      '\u2068',
+      '\u2069',
+    ];
+    for (const control of bidiControls) {
+      const code = (control.codePointAt(0) ?? 0).toString(16);
+      expect(encodeLogField(`a${control}b`), `U+${code.toUpperCase()} is escaped`).toBe(
+        `a\\u{${code}}b`,
+      );
+    }
   });
 
   it('cuts a long message to 200 characters and says so', () => {

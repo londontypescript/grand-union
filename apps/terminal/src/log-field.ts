@@ -1,9 +1,10 @@
 // Characters that could forge a log line or act on the terminal of whoever
 // reads the log: Unicode's control characters (`Cc`: the C0 controls such
 // as line breaks and ESC, DEL, and the C1 controls), the line and paragraph
-// separators, and the bidi embeddings, overrides and isolates that reorder
-// what a reader sees.
-const UNSAFE = /[\p{Cc}\u2028\u2029\u202a-\u202e\u2066-\u2069]/gu;
+// separators, and every bidirectional control (`Bidi_Control`: the
+// marks, embeddings, overrides and isolates that reorder what a reader
+// sees).
+const UNSAFE = /[\p{Cc}\p{Bidi_Control}\u2028\u2029]/gu;
 
 // Long enough for any message ssh2 writes itself; a client's own
 // disconnect text can be far longer.
