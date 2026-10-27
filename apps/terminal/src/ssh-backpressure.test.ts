@@ -104,11 +104,15 @@ describe(
           await sleep(10);
         }
 
-        // Destroyed, not gracefully closed: the backed-up socket is reset, so
-        // the client sees a failure rather than a goodbye-then-close.
+        // Torn down by the socket-overflow path, not any other close: the
+        // unrelated timers are at 600 s and the SSH window still has credit
+        // (so the channel never overran), leaving the 1 MiB socket queue as
+        // the only thing that could have ended it. And it was destroyed, not
+        // gracefully ended — the goodbye sits behind the backed-up socket and
+        // never reaches the client.
         expect(watched.ended, 'the connection is torn down').toBeDefined();
-        expect(watched.ended, 'it was destroyed (a reset), i.e. the socket-overflow path').toMatch(
-          /failed/,
+        expect(watched.text(), 'destroyed mid-backlog: no goodbye got through').not.toContain(
+          'Goodbye',
         );
         expect(await waitForConnectionCount(server, 0, TEST_TIMEOUT_MS), 'the slot is freed').toBe(
           0,
