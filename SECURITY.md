@@ -37,10 +37,11 @@ What _is_ in scope for this target:
   connection).
 
 The limits the server currently applies — connection, handshake,
-shell-less, per-connection session and concurrent shell caps — are listed
-in `docs/architecture.md` and tested in `apps/terminal/src/ssh-limits.test.ts`.
-A way around any of them is in scope. The server and that test are being
-ported here in Phase 3b (#5); until it merges, neither is in this repository.
+shell-less, per-connection session and concurrent shell caps, the idle
+timeout, the terminal-size cap and the unread-output bound — are listed in
+`docs/architecture.md` and tested in `apps/terminal/src/ssh-limits.test.ts`,
+`ssh-session.test.ts` and `session.test.ts`. A way around any of them is in
+scope.
 
 Being able to _connect_ without credentials, or to _view_ the rendered page,
 is expected behaviour, not a report.
