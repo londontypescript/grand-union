@@ -16,6 +16,13 @@ const { Server } = ssh2;
 // can prove the deadline fires without a real 5 s wait.
 const DEFAULT_SHUTDOWN_DEADLINE_MS = 5000;
 
+// `client.end()` only half-closes the connection (ssh2 sends a disconnect and
+// FINs its side). A client that never FINs back keeps its socket, and so its
+// connection slot, open. This long after the pre-shell `end()`, the socket is
+// destroyed if it hasn't closed on its own. Overridable per-instance so a
+// test need not wait a real 5 s.
+const DEFAULT_PRE_SHELL_CLOSE_GRACE_MS = 5000;
+
 export interface CreateServerOptions {
   readonly align: VerticalAlign;
   readonly hostKey: string;
@@ -30,6 +37,8 @@ export interface CreateServerOptions {
   readonly maxSessionsPerConnection: number;
   /** How long `shutdown` waits for sockets to close before destroying them. */
   readonly shutdownDeadlineMs?: number;
+  /** How long after the pre-shell `end()` a half-closed socket is forced shut. */
+  readonly preShellCloseGraceMs?: number;
   readonly log?: (line: string) => void;
 }
 
@@ -138,7 +147,21 @@ export function createServer(options: CreateServerOptions): TerminalServer {
     let connectionSocket: net.Socket | undefined;
 
     function armPreShellTimer(): void {
-      preShellTimer = setTimeout(() => client.end(), options.preShellTimeoutMs);
+      preShellTimer = setTimeout(() => {
+        client.end();
+        // ssh2's end() only half-closes; if the client won't FIN back, the
+        // socket (and its connection slot) lingers. Force it shut after the
+        // grace unless it closes on its own first.
+        const socket = connectionSocket;
+        if (socket !== undefined && !socket.destroyed) {
+          const forceClose = setTimeout(() => {
+            socket.destroy();
+          }, options.preShellCloseGraceMs ?? DEFAULT_PRE_SHELL_CLOSE_GRACE_MS);
+          socket.once('close', () => {
+            clearTimeout(forceClose);
+          });
+        }
+      }, options.preShellTimeoutMs);
     }
 
     client.on('authentication', (ctx) => {

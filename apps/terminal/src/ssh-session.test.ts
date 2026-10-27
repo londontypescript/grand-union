@@ -1,3 +1,4 @@
+import type net from 'node:net';
 import { stripVTControlCharacters } from 'node:util';
 import type { Client as SshClient, ClientChannel, PseudoTtyOptions } from 'ssh2';
 import ssh2 from 'ssh2';
@@ -62,6 +63,34 @@ async function serve(overrides: Partial<CreateServerOptions> = {}): Promise<numb
   const port = await listen(server);
   closeAfter = () => closeServer(server);
   return port;
+}
+
+/** The server's live connection count (how many slots the `maxConnections` cap sees). */
+function connectionCount(server: net.Server): Promise<number> {
+  return new Promise((resolve, reject) => {
+    server.getConnections((error, count) => {
+      if (error) {
+        reject(error);
+      } else {
+        resolve(count);
+      }
+    });
+  });
+}
+
+/** Polls the server's connection count until it reaches `target` or `ms` passes, returning the last count seen. */
+async function waitForConnectionCount(
+  server: net.Server,
+  target: number,
+  ms: number,
+): Promise<number> {
+  const deadline = Date.now() + ms;
+  let count = await connectionCount(server);
+  while (count !== target && Date.now() < deadline) {
+    await sleep(20);
+    count = await connectionCount(server);
+  }
+  return count;
 }
 
 async function connect(port: number): Promise<SshClient> {
@@ -373,6 +402,43 @@ describe(
         const next = await shell(await connect(port), PTY);
         await until(next, () => next.text().includes(PAGE_TEXT));
         expect(next.text(), 'the freed slot lets a new shell mount').not.toContain('at capacity');
+      } finally {
+        await proxy.close();
+      }
+    });
+  },
+);
+
+describe(
+  'a connection that completes the handshake but opens no shell',
+  { timeout: TEST_TIMEOUT_MS },
+  () => {
+    it('has its slot freed after the grace, even if the client ignores the server close', async () => {
+      const PRE_SHELL_MS = 200;
+      const CLOSE_GRACE_MS = 300;
+      // One connection slot, so a half-open one left holding it would lock
+      // everyone out; the pre-shell end and its close grace are short here.
+      const { server } = startServer({
+        maxConnections: 1,
+        preShellTimeoutMs: PRE_SHELL_MS,
+        preShellCloseGraceMs: CLOSE_GRACE_MS,
+      });
+      const port = await listen(server);
+      closeAfter = () => closeServer(server);
+      const proxy = await startProxy(port);
+      try {
+        // A client that reaches `ready` and opens no shell, behind a proxy that
+        // never forwards the server's FIN, so the socket would stay half-open.
+        const client = new Client();
+        clients.push(client);
+        await connectReady(client, proxy.port);
+
+        // The slot frees ~500 ms in (end + grace); poll well past that, but
+        // inside the suite timeout, so a slot that never frees shows as a
+        // non-zero count here rather than a Vitest timeout.
+        const count = await waitForConnectionCount(server, 0, 10_000);
+
+        expect(count, "the half-open connection's slot is freed").toBe(0);
       } finally {
         await proxy.close();
       }
