@@ -96,7 +96,7 @@ Then look at it in each target:
 pnpm dev:web            # browser, ?align=top|middle|bottom (Phase 3a, #4)
 pnpm dev:scene          # 3D (Phase 3c, #6)
 pnpm dev:terminal       # then, in another shell: pnpm dev:terminal:connect (Phase 3b, #5)
-pnpm dev:desktop        # Electron (Phase 4, #7)
+pnpm dev:desktop        # Electron, after pnpm dev:web (Phase 4, #7)
 ```
 
 Compiling isn't enough. The types prove the primitive exists everywhere, not
