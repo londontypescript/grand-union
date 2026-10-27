@@ -37,8 +37,10 @@ What _is_ in scope for this target:
   connection).
 
 The limits the server currently applies — connection, handshake,
-shell-less, per-connection session and concurrent shell caps, the idle
-timeout, the terminal-size cap and the unread-output bound — are listed in
+shell-less (with a forced close after a grace), per-connection session and
+concurrent shell caps, one shell per session, the idle timeout, the
+terminal-size cap, the minimum packet size, and the unread-output bound on
+both the channel and the connection socket — are listed in
 `docs/architecture.md` and tested in `apps/terminal/src/ssh-limits.test.ts`,
 `ssh-session.test.ts` and `session.test.ts`. A way around any of them is in
 scope.

@@ -179,12 +179,18 @@ and mount the result on its renderer.
   (read-only public site). `create-server.ts` owns the TCP listener and hands
   each socket to ssh2 via `injectSocket`, so it can bound what an
   unauthenticated client holds: at most 256 connections, 10 s to finish the
-  handshake, 30 s without an open shell (re-armed when the last shell ends),
-  2 session channels per connection, 64 concurrent shells, and a 10-minute
-  idle timeout per shell. A client's terminal size is capped at 500×200,
-  and a shell whose unread output passes 1 MiB is ended, so one client can't
-  make the server allocate or queue without bound. The client's own text in
-  a connection-error log line is escaped and cut to 200 characters. Host key
+  handshake, 30 s without an open shell (re-armed when the last shell ends,
+  and the socket forced shut 5 s after that deadline if a half-closed client
+  won't let go), 2 session channels per connection, one shell per session
+  (a second `shell` request is refused), 64 concurrent shells, and a
+  10-minute idle timeout per shell. A client's terminal size is capped at
+  500×200; a shell channel is refused if the client's maximum packet size is
+  below 1 KiB (ssh2's write loop can't make progress below that); and a shell
+  whose unread output passes 1 MiB — in the ssh2 channel's queue or the
+  connection socket's — is ended (the connection destroyed for a socket
+  overrun), so one client can't make the server allocate or queue without
+  bound. The client's own text in a connection-error log line is escaped and
+  cut to 200 characters. Host key
   generated on first run into `apps/terminal/.data/` (gitignored), or read
   from `LTS_HOST_KEY_PATH` when set, retried until ssh2 can parse it. Each
   shell gets its own ink instance bound to the channel, sized from `pty-req`,
