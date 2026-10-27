@@ -2,7 +2,7 @@ import { home } from '@lts/pages';
 import { ink } from '@lts/renderer-ink';
 import type { VerticalAlign } from '@lts/vocabulary';
 import { render } from 'ink';
-import type { Session } from 'ssh2';
+import type { ServerChannel, Session } from 'ssh2';
 import { asNodeStdio, resizePtyStdio, toPtyStdio } from './channel-stdio.ts';
 import type { SessionLimiter } from './session-limiter.ts';
 
@@ -16,6 +16,15 @@ const MAX_COLS = 500;
 const MAX_ROWS = 200;
 
 const IDLE_TIMEOUT_MS = 10 * 60 * 1000;
+
+// The smallest maximum packet size a shell is served. ssh2's `Channel._write`
+// slices output into packets of this size; a client that declares 0 makes
+// that loop spin forever on the first write (slice length 0, position never
+// advances), and a handful of bytes makes it emit a packet per few
+// characters. Every real client negotiates 32 KiB (OpenSSH, PuTTY,
+// libssh2), so 1 KiB is far below any of them and above both degenerate
+// cases.
+const MIN_PACKET_SIZE = 1024;
 
 // The single byte a plain (non-paste) keypress of `q` or Ctrl+C ('\x03',
 // ETX) arrives as — checked against `data.length === 1` so a pasted string
@@ -76,6 +85,20 @@ export function callIfPresent(fn: (() => void) | undefined): void {
 }
 
 /**
+ * The client's maximum packet size for this channel, read from ssh2's public
+ * `outgoing` channel info (its type is `unknown`, so the shape is checked);
+ * `0` when ssh2 didn't populate it.
+ */
+function outgoingPacketSize(channel: ServerChannel): number {
+  const outgoing: unknown = channel.outgoing;
+  if (typeof outgoing === 'object' && outgoing !== null && 'packetSize' in outgoing) {
+    const size: unknown = outgoing.packetSize;
+    return typeof size === 'number' ? size : 0;
+  }
+  return 0;
+}
+
+/**
  * Wires one SSH `Session` (one `session` channel-open request) to the
  * ink/vocabulary pipeline. `pty`/`window-change` track terminal size ahead
  * of and during a shell; `shell` mounts an ink instance bound to the
@@ -108,17 +131,22 @@ export function attachSession(session: Session, options: SessionOptions): void {
   });
 
   session.on('shell', (accept) => {
-    if (!options.limiter.tryAcquire()) {
-      const busyChannel = accept();
-      busyChannel.write(
-        'London TypeScript terminal is at capacity — please try again shortly.\r\n',
-      );
-      busyChannel.exit(1);
-      busyChannel.end();
+    const channel = accept();
+
+    if (outgoingPacketSize(channel) < MIN_PACKET_SIZE) {
+      // ssh2 would spin forever (0) or drip (a few bytes) on the first write,
+      // so refuse before any output, the capacity notice included.
+      channel.close();
       return;
     }
 
-    const channel = accept();
+    if (!options.limiter.tryAcquire()) {
+      channel.write('London TypeScript terminal is at capacity — please try again shortly.\r\n');
+      channel.exit(1);
+      channel.end();
+      return;
+    }
+
     const stdio = toPtyStdio(channel, size, () => {
       // The client has stopped reading. This runs inside Ink's own write, so
       // the shell ends once that write has returned.

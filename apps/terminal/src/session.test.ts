@@ -5,6 +5,8 @@ import { FakeSession, closeShell, type FakeChannel } from './session-test-suppor
 const IDLE_TIMEOUT_MS = 10 * 60 * 1000;
 const MINUTE_MS = 60 * 1000;
 const GOODBYE = 'Goodbye from London TypeScript.';
+// The page's quote: the capacity message also names London TypeScript.
+const PAGE_TEXT = 'Write it once, render it everywhere.';
 
 // Every shell a test opens, ended in `afterEach` so no Ink instance outlives it.
 const open: FakeChannel[] = [];
@@ -134,5 +136,22 @@ describe('a window-change to the size the shell already has', () => {
 describe('an env request that wants a reply', () => {
   it('is refused', () => {
     expect(new FakeSession().env('TEST', 'value')).toEqual({ accepted: 0, rejected: 1 });
+  });
+});
+
+describe('a shell whose client set too small a maximum packet size', () => {
+  // ssh2's Channel._write slices output by this size; 0 spins its loop
+  // forever on the first write. Tested at the handler boundary, since the
+  // ssh2 client can't declare a 0 packet size over the wire, and a
+  // FakeChannel can't hang. 100 is below the floor, above 0.
+  it('is refused before any output and takes no shell slot', () => {
+    const session = new FakeSession({ maxSessions: 1 });
+
+    const refused = session.shell(100);
+    expect(refused.text(), 'nothing is written to a channel with too small a packet size').toBe('');
+    expect(refused.closedByServer, 'the channel is closed').toBe(true);
+
+    // The slot it would have taken is still free.
+    expect(shellOn(session).text(), 'a normal shell still mounts').toContain(PAGE_TEXT);
   });
 });

@@ -4,6 +4,10 @@ import type { ServerChannel, Session } from 'ssh2';
 import { attachSession } from './session.ts';
 import { SessionLimiter } from './session-limiter.ts';
 
+// A packet size no real client falls below, so `shell()` mounts by default;
+// a test overrides it to exercise the packet-size floor.
+const SANE_PACKET_SIZE = 32_768;
+
 /**
  * A stand-in for the `ServerChannel` a shell's `accept()` returns: a real
  * `Duplex`, so Ink and `session.ts` use it as they would an SSH channel,
@@ -15,6 +19,16 @@ export class FakeChannel extends Duplex {
   readonly exitCodes: number[] = [];
   columns: number | undefined;
   rows: number | undefined;
+  // Set when the server closes the channel without ending a mounted shell —
+  // not Node's own `closed`, which the base stream owns.
+  closedByServer = false;
+  // ssh2 exposes the client's maximum packet size here; `session.ts` reads it.
+  readonly outgoing: { readonly packetSize: number };
+
+  constructor(packetSize: number = SANE_PACKET_SIZE) {
+    super();
+    this.outgoing = { packetSize };
+  }
 
   override _read(): void {
     // Input is pushed by the test with `push`, never pulled.
@@ -33,6 +47,15 @@ export class FakeChannel extends Duplex {
     this.exitCodes.push(code);
   }
 
+  override destroy(): this {
+    this.closedByServer = true;
+    return super.destroy();
+  }
+
+  close(): void {
+    this.closedByServer = true;
+  }
+
   text(): string {
     return this.written.join('');
   }
@@ -44,6 +67,19 @@ export interface RequestReply {
   rejected: number;
 }
 
+/** A shell request's channel and whether its handler accepted or rejected it. */
+export interface ShellResult {
+  readonly channel: FakeChannel;
+  readonly accepted: boolean;
+  readonly rejected: boolean;
+}
+
+export interface FakeSessionOptions {
+  readonly maxSessions?: number;
+  /** Share one limiter across several fake sessions (several connections). */
+  readonly limiter?: SessionLimiter;
+}
+
 /**
  * One SSH `Session` as `attachSession` sees it: an `EventEmitter` the test
  * emits requests on, with the arguments ssh2 would pass for a request that
@@ -52,10 +88,10 @@ export interface RequestReply {
 export class FakeSession {
   readonly #emitter = new EventEmitter();
 
-  constructor(maxSessions = 1) {
+  constructor(options: FakeSessionOptions = {}) {
     attachSession(this.#emitter as unknown as Session, {
       align: 'middle',
-      limiter: new SessionLimiter(maxSessions),
+      limiter: options.limiter ?? new SessionLimiter(options.maxSessions ?? 1),
     });
   }
 
@@ -75,10 +111,32 @@ export class FakeSession {
   }
 
   /** Sends `shell` and returns the channel its handler accepted. */
-  shell(): FakeChannel {
-    const channel = new FakeChannel();
-    this.#emitter.emit('shell', () => channel as unknown as ServerChannel, undefined);
-    return channel;
+  shell(packetSize?: number): FakeChannel {
+    return this.shellRequest(packetSize).channel;
+  }
+
+  /** Sends `shell` and reports whether the handler accepted or rejected it. */
+  shellRequest(packetSize?: number): ShellResult {
+    const channel = new FakeChannel(packetSize);
+    let accepted = false;
+    let rejected = false;
+    try {
+      this.#emitter.emit(
+        'shell',
+        () => {
+          accepted = true;
+          return channel as unknown as ServerChannel;
+        },
+        () => {
+          rejected = true;
+        },
+      );
+    } catch {
+      // A broken handler (e.g. one that acquires a slot then dereferences an
+      // undefined second channel) may throw; the test asserts on the slot
+      // and the output, not on the throw.
+    }
+    return { channel, accepted, rejected };
   }
 
   #request(event: string, info: object): RequestReply {
