@@ -20,7 +20,7 @@ const { Client } = ssh2;
 // The page's quote: the capacity message also names London TypeScript, so
 // the header alone can't tell the page from the refusal.
 export const PAGE_TEXT = 'Write it once, render it everywhere.';
-export const GENEROUS_MS = 5000;
+const GENEROUS_MS = 5000;
 // Above each test's own waits plus cleanup (closing the server is bounded
 // at 5 s), so a broken handler fails with its own message, never with
 // Vitest's timeout.
@@ -36,7 +36,7 @@ export interface Watched {
 }
 
 /** Records a channel's output, exit status and end, and the end of its connection. */
-export function watch(client: SshClient, stream: ClientChannel): Watched {
+function watch(client: SshClient, stream: ClientChannel): Watched {
   let raw = '';
   const watched: Watched = {
     stream,
@@ -99,7 +99,7 @@ export function shell(
 }
 
 /** The server's live connection count (how many slots the `maxConnections` cap sees). */
-export function connectionCount(server: net.Server): Promise<number> {
+function connectionCount(server: net.Server): Promise<number> {
   return new Promise((resolve, reject) => {
     server.getConnections((error, count) => {
       if (error) {
