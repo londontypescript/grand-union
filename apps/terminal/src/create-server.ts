@@ -2,6 +2,7 @@ import net from 'node:net';
 import type { ClientInfo, Connection } from 'ssh2';
 import ssh2 from 'ssh2';
 import type { VerticalAlign } from '@lts/vocabulary';
+import { encodeLogField } from './log-field.ts';
 import { attachSession, callIfPresent } from './session.ts';
 import { SessionLimiter } from './session-limiter.ts';
 
@@ -168,7 +169,10 @@ export function createServer(options: CreateServerOptions): TerminalServer {
     });
 
     client.on('error', (error: Error) => {
-      log(`[terminal] connection error from ${describeClient(info)}: ${error.message}`);
+      // ssh2 builds the message from what the client sent when it hung up.
+      log(
+        `[terminal] connection error from ${describeClient(info)}: ${encodeLogField(error.message)}`,
+      );
     });
   });
 
