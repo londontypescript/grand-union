@@ -65,7 +65,7 @@ Each target's commands arrive with the phase that ports it:
 ```sh
 pnpm dev:web        # react-dom, in a browser
 pnpm dev:scene      # react-three-fiber, in a browser
-pnpm dev:terminal   # ink over SSH — then, in another shell:
+pnpm dev:terminal   # ink over SSH on 127.0.0.1, for local development only — then, in another shell:
 pnpm dev:terminal:connect   # = ssh -p 2222 localhost (the resolved port), without host-key prompts
 pnpm dev:desktop    # Electron, wrapping the dom build (Phase 4, #7)
 

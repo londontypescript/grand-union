@@ -175,8 +175,12 @@ and mount the result on its renderer.
   and the custom scheme `desktop` serves it under (see below).
 - **scene** — Vite; the page floats on a panel in a 3D scene with gentle orbit.
 - **terminal** — `ssh2` server on port `2222` by default, from
-  `scripts/ports.ts` (`PORT`, or `LTS_PORT_BASE` + 2). Accepts any client
-  (read-only public site). `create-server.ts` owns the TCP listener and hands
+  `scripts/ports.ts` (`PORT`, or `LTS_PORT_BASE` + 2). For local development
+  only: it listens on `127.0.0.1` (checked by `ssh-process.test.ts`), and
+  serving it publicly is a separate design (#38). Accepts any client,
+  read-only. Compression is off (`ssh-compression.test.ts`): with zlib
+  negotiated, ssh2 1.17.0 crashes the process when a client drops
+  (mscdex/ssh2#1178). `create-server.ts` owns the TCP listener and hands
   each socket to ssh2 via `injectSocket`, so it can bound what an
   unauthenticated client holds: at most 256 connections, 10 s to finish the
   handshake, 30 s without an open shell (re-armed when the last shell ends,
