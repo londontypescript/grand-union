@@ -134,8 +134,17 @@ export function attachSession(session: Session, options: SessionOptions): void {
     callIfPresent(reject);
   });
 
-  session.on('shell', (accept) => {
+  // ssh2 builds one channel per session; a second `shell` request would
+  // otherwise take another shell slot and then fail, draining the cap.
+  let shellStarted = false;
+
+  session.on('shell', (accept, reject) => {
+    if (shellStarted) {
+      callIfPresent(reject);
+      return;
+    }
     const channel = accept();
+    shellStarted = true;
 
     if (outgoingPacketSize(channel) < MIN_PACKET_SIZE) {
       // ssh2 would spin forever (0) or drip (a few bytes) on the first write,
@@ -151,6 +160,18 @@ export function attachSession(session: Session, options: SessionOptions): void {
       return;
     }
 
+    try {
+      startShell(channel);
+    } catch {
+      // Mounting the shell failed after a slot was taken; release it and
+      // close the channel rather than hold the slot for a shell that never
+      // ran.
+      options.limiter.release();
+      channel.close();
+    }
+  });
+
+  function startShell(channel: ServerChannel): void {
     let overflowed = false;
     const stdio = toPtyStdio(channel, size, {
       connectionWritableLength: () => options.connectionWritableLength?.() ?? 0,
@@ -225,5 +246,5 @@ export function attachSession(session: Session, options: SessionOptions): void {
 
     channel.on('close', endSession);
     channel.on('error', endSession);
-  });
+  }
 }

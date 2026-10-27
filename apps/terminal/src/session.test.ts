@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { FakeSession, closeShell, type FakeChannel } from './session-test-support.ts';
+import { SessionLimiter } from './session-limiter.ts';
 
 // `session.ts`'s IDLE_TIMEOUT_MS, which it doesn't export.
 const IDLE_TIMEOUT_MS = 10 * 60 * 1000;
@@ -145,13 +146,43 @@ describe('a shell whose client set too small a maximum packet size', () => {
   // ssh2 client can't declare a 0 packet size over the wire, and a
   // FakeChannel can't hang. 100 is below the floor, above 0.
   it('is refused before any output and takes no shell slot', () => {
-    const session = new FakeSession({ maxSessions: 1 });
+    const limiter = new SessionLimiter(1);
 
-    const refused = session.shell(100);
+    const refused = new FakeSession({ limiter }).shell(100);
     expect(refused.text(), 'nothing is written to a channel with too small a packet size').toBe('');
     expect(refused.closedByServer, 'the channel is closed').toBe(true);
 
-    // The slot it would have taken is still free.
-    expect(shellOn(session).text(), 'a normal shell still mounts').toContain(PAGE_TEXT);
+    // The one slot it would have taken is still free for the next connection.
+    expect(shellOn(new FakeSession({ limiter })).text(), 'a normal shell still mounts').toContain(
+      PAGE_TEXT,
+    );
+  });
+});
+
+describe('a second shell on one session', () => {
+  it('is rejected, and the leak it would cause is gone: both slots free after the connection ends', () => {
+    const limiter = new SessionLimiter(2);
+    const a = new FakeSession({ limiter });
+
+    const first = a.shell();
+    open.push(first);
+    expect(first.text(), "A's first shell mounts").toContain(PAGE_TEXT);
+
+    expect(a.shellRequest().rejected, 'a second shell on the same session is rejected').toBe(true);
+    // More duplicates, which must not drain the shell cap.
+    a.shellRequest();
+    a.shellRequest();
+
+    // A disconnects, releasing its one real shell.
+    closeShell(first);
+    open.splice(open.indexOf(first), 1);
+
+    // Both slots are free, so two fresh connections both get a shell.
+    const b = shellOn(new FakeSession({ limiter }));
+    const c = shellOn(new FakeSession({ limiter }));
+    expect(b.text(), 'B mounts after A left').toContain(PAGE_TEXT);
+    expect(c.text(), 'both slots free after A left: C mounts, not bounced for capacity').toContain(
+      PAGE_TEXT,
+    );
   });
 });
