@@ -10,6 +10,7 @@ import {
   generateHostKey,
   listen,
   sleep,
+  startProxy,
 } from './ssh-test-support.ts';
 
 // See `host-key.ts`/`create-server.ts` for why this is a default-import
@@ -333,3 +334,48 @@ describe('a client that stops reading', { timeout: BACKLOG_MS + TEST_TIMEOUT_MS 
     expect(next.text(), 'a new shell, once that one has ended').not.toContain('at capacity');
   });
 });
+
+describe(
+  'a client that stops reading at the TCP level',
+  { timeout: BACKLOG_MS + TEST_TIMEOUT_MS },
+  () => {
+    it('has its connection destroyed and its slot freed once the socket queue passes the bound', async () => {
+      const port = await serve({ maxSessions: 1 });
+      const proxy = await startProxy(port);
+      try {
+        const watched = await shell(await connect(proxy.port), {
+          term: 'xterm',
+          cols: 500,
+          rows: 200,
+        });
+        await until(watched, () => watched.text().includes(PAGE_TEXT));
+
+        // Stop draining the server→client direction at the TCP level while
+        // the SSH window stays open; keep sending resizes (client→server), so
+        // the server keeps drawing into a socket whose queue now only grows.
+        proxy.pauseFromServer();
+        const deadline = Date.now() + BACKLOG_MS;
+        let cols = 500;
+        while (watched.ended === undefined && Date.now() < deadline) {
+          for (let i = 0; i < 10; i += 1) {
+            cols = cols === 500 ? 499 : 500;
+            watched.stream.setWindow(200, cols, 0, 0);
+          }
+          await sleep(10);
+        }
+
+        expect(
+          watched.ended,
+          'the connection is torn down once its socket queue passes the bound',
+        ).toBeDefined();
+
+        // The slot is free: a fresh client, straight to the server, gets a shell.
+        const next = await shell(await connect(port), PTY);
+        await until(next, () => next.text().includes(PAGE_TEXT));
+        expect(next.text(), 'the freed slot lets a new shell mount').not.toContain('at capacity');
+      } finally {
+        await proxy.close();
+      }
+    });
+  },
+);

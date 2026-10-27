@@ -43,6 +43,10 @@ export interface SessionOptions {
   readonly onShellStart?: (endSession: () => void) => void;
   /** Called once that shell ends, pairing every `onShellStart`. */
   readonly onShellEnd?: (endSession: () => void) => void;
+  /** Bytes queued in the connection's own socket, for the output bound; 0 when unknown. */
+  readonly connectionWritableLength?: () => number;
+  /** Destroys the whole connection — used when its socket queue overflows. */
+  readonly destroyConnection?: () => void;
 }
 
 /**
@@ -147,10 +151,25 @@ export function attachSession(session: Session, options: SessionOptions): void {
       return;
     }
 
-    const stdio = toPtyStdio(channel, size, () => {
-      // The client has stopped reading. This runs inside Ink's own write, so
-      // the shell ends once that write has returned.
-      queueMicrotask(endSession);
+    let overflowed = false;
+    const stdio = toPtyStdio(channel, size, {
+      connectionWritableLength: () => options.connectionWritableLength?.() ?? 0,
+      onOverflow: (source) => {
+        if (overflowed) {
+          return;
+        }
+        overflowed = true;
+        // The latch inside the adapter has already stopped further writes.
+        // Tear down from a microtask, out of Ink's own write: end the shell
+        // (goodbye attempt, unmount, slot released) and, when it was the
+        // connection socket that overran, destroy the whole connection.
+        queueMicrotask(() => {
+          endSession();
+          if (source === 'connection') {
+            options.destroyConnection?.();
+          }
+        });
+      },
     });
     const nodeStdio = asNodeStdio(stdio);
     onResize = (cols, rows) => {

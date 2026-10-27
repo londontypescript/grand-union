@@ -49,6 +49,18 @@ function clearHandshakeTimer(pending: Map<net.Socket, NodeJS.Timeout>, info: Cli
   }
 }
 
+/** The accepted socket whose peer address matches `info`, among those still
+ *  open — how a connection's own socket is found without ssh2's private
+ *  `_sock` (a remote port is unique per live TCP connection). */
+function socketFor(sockets: ReadonlySet<net.Socket>, info: ClientInfo): net.Socket | undefined {
+  for (const socket of sockets) {
+    if (socket.remoteAddress === info.ip && socket.remotePort === info.port) {
+      return socket;
+    }
+  }
+  return undefined;
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -120,6 +132,10 @@ export function createServer(options: CreateServerOptions): TerminalServer {
     let sessionCount = 0;
     let activeShells = 0;
     let preShellTimer: NodeJS.Timeout | undefined;
+    // The connection's own TCP socket, found by its address once the
+    // handshake is done. Used to bound its output queue and to force it
+    // closed if a half-closed client won't let go.
+    let connectionSocket: net.Socket | undefined;
 
     function armPreShellTimer(): void {
       preShellTimer = setTimeout(() => client.end(), options.preShellTimeoutMs);
@@ -132,6 +148,7 @@ export function createServer(options: CreateServerOptions): TerminalServer {
 
     client.on('ready', () => {
       clearHandshakeTimer(pendingHandshakes, info);
+      connectionSocket = socketFor(activeSockets, info);
       armPreShellTimer();
 
       client.on('session', (accept, reject) => {
@@ -144,6 +161,8 @@ export function createServer(options: CreateServerOptions): TerminalServer {
         attachSession(accept(), {
           align: options.align,
           limiter,
+          connectionWritableLength: () => connectionSocket?.writableLength ?? 0,
+          destroyConnection: () => connectionSocket?.destroy(),
           onShellStart: (endSession) => {
             clearTimeout(preShellTimer);
             activeShells += 1;

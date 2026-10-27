@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import type { AddressInfo, Server as NetServer } from 'node:net';
+import net, { type AddressInfo, type Server as NetServer } from 'node:net';
 import type { Client as SshClient } from 'ssh2';
 
 export { generateHostKey } from './host-key.ts';
@@ -46,6 +46,84 @@ export function closeServer(server: NetServer): Promise<void> {
 
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * A TCP proxy in front of the server, for the two things a real `ssh2`
+ * client can't do on its own:
+ *
+ * - **Stop reading at the TCP level** while the SSH window stays open
+ *   (`pauseFromServer`): it stops draining the server→client direction, so
+ *   the server's own socket queue grows. The client→server direction keeps
+ *   flowing, so the client can still send resizes that make the server draw.
+ * - **Ignore the server's half-close:** a FIN from either side is never
+ *   forwarded and the upstream socket is `allowHalfOpen`, so when the server
+ *   `end()`s a connection the server's socket stays open until the test
+ *   tears the proxy down — a client that never lets go.
+ *
+ * Every socket it opens is destroyed by {@link TestProxy.close}.
+ */
+export interface TestProxy {
+  readonly port: number;
+  pauseFromServer: () => void;
+  close: () => Promise<void>;
+}
+
+export function startProxy(targetPort: number): Promise<TestProxy> {
+  const pairs: { client: net.Socket; upstream: net.Socket }[] = [];
+  let paused = false;
+
+  const forward = (from: net.Socket, to: net.Socket, gated: boolean): void => {
+    from.on('data', (chunk: Buffer) => {
+      if (gated && paused) {
+        return;
+      }
+      if (!to.destroyed) {
+        to.write(chunk);
+      }
+    });
+  };
+
+  const server = net.createServer((client) => {
+    const upstream = net.connect({ host: HOST, port: targetPort, allowHalfOpen: true });
+    pairs.push({ client, upstream });
+    forward(client, upstream, false);
+    forward(upstream, client, true);
+    // A FIN is deliberately not forwarded (no `end` re-emit), so neither peer
+    // learns the other half-closed; the server's own 5 s grace is what the
+    // half-open test relies on. The server destroying its socket does reach
+    // the client, so it sees the connection drop.
+    upstream.on('close', () => client.destroy());
+    const ignore = (): void => {
+      // Errors on teardown are expected; `close()` cleans the sockets up.
+    };
+    client.on('error', ignore);
+    upstream.on('error', ignore);
+  });
+
+  return new Promise((resolve) => {
+    server.listen(0, HOST, () => {
+      resolve({
+        port: (server.address() as AddressInfo).port,
+        pauseFromServer: () => {
+          paused = true;
+          for (const { upstream } of pairs) {
+            upstream.pause();
+          }
+        },
+        close: () =>
+          new Promise((done) => {
+            for (const { client, upstream } of pairs) {
+              client.destroy();
+              upstream.destroy();
+            }
+            server.close(() => {
+              done();
+            });
+          }),
+      });
+    });
+  });
 }
 
 /** Connects `client` and resolves once it reaches `ready`, without opening any channel. */

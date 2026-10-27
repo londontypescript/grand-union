@@ -21,10 +21,25 @@ export interface PtyStdio extends ServerChannel {
 
 type WriteCallback = (error: Error | null | undefined) => void;
 
-// The most output that may wait in a channel for its client. Ink writes
-// whether or not the client grants window credit, so without a bound a
-// client that stops reading would make ssh2 queue output without end.
+// The most output that may wait for a client, in the ssh2 channel's own
+// queue or in the connection socket's. Ink writes whether or not the client
+// grants SSH window credit or reads its TCP socket, so without a bound a
+// client that stops reading either would make the server queue output
+// without end.
 const MAX_QUEUED_OUTPUT_BYTES = 1024 * 1024;
+
+/** How `toPtyStdio` watches for, and reacts to, a client that stops reading. */
+export interface BacklogGuard {
+  /** Bytes queued in the connection's own socket (0 when it can't be read). */
+  readonly connectionWritableLength: () => number;
+  /**
+   * Called once, the instant the channel's or the connection's queue first
+   * passes the bound; `source` says which. After it, the adapter writes
+   * nothing more (the client isn't draining, so more output only grows the
+   * queue).
+   */
+  readonly onOverflow: (source: 'channel' | 'connection') => void;
+}
 
 /**
  * Translates every bare `\n` to `\r\n` — the job a real pty's `ONLCR`
@@ -44,13 +59,14 @@ export function toCrlf(text: string): string {
  * descriptor playing all three roles. `initial` comes from the session's
  * `pty-req` (or the 80×24 default for a channel that never sent one).
  * String writes get `\n` → `\r\n` translation (see {@link toCrlf}); Ink
- * only ever writes strings. `onBacklog` is called after any write that
- * leaves more than 1 MiB queued in the channel.
+ * only ever writes strings. `guard` watches the channel's and the
+ * connection's queues and, once either passes the bound, latches: no more
+ * output is written and {@link BacklogGuard.onOverflow} fires once.
  */
 export function toPtyStdio(
   channel: ServerChannel,
   initial: { readonly cols: number; readonly rows: number },
-  onBacklog: () => void,
+  guard: BacklogGuard,
 ): PtyStdio {
   const stdio = channel as PtyStdio;
   stdio.columns = initial.cols;
@@ -63,18 +79,28 @@ export function toPtyStdio(
     // unconditionally once `isTTY` is true) has something to call.
   };
   const write = channel.write.bind(channel);
+  let stopped = false;
   stdio.write = (
     chunk: unknown,
     encoding?: BufferEncoding | WriteCallback,
     callback?: WriteCallback,
   ): boolean => {
+    if (stopped) {
+      // Latched after an overflow: the client isn't draining, so adding more
+      // only grows the queue. Drop the write.
+      return false;
+    }
     const data = typeof chunk === 'string' ? toCrlf(chunk) : chunk;
     const flushed =
       typeof encoding === 'function'
         ? write(data, encoding)
         : write(data, encoding ?? 'utf8', callback);
     if (channel.writableLength > MAX_QUEUED_OUTPUT_BYTES) {
-      onBacklog();
+      stopped = true;
+      guard.onOverflow('channel');
+    } else if (guard.connectionWritableLength() > MAX_QUEUED_OUTPUT_BYTES) {
+      stopped = true;
+      guard.onOverflow('connection');
     }
     return flushed;
   };
