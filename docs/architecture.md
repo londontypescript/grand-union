@@ -7,9 +7,8 @@ what comes next; this file says what exists and how it fits together.
 Decisions with alternatives live in `docs/adr/`.
 
 The code is being ported here from a prototype, one phase per issue. The
-vocabulary, pages, the three renderers, the web, scene and terminal apps and
-the contract tests are here; the desktop shell arrives in 4 (#7) and the
-render checks in 5 (#8). Until its phase merges, a part described here, and
+vocabulary, pages, the three renderers, the web, scene, terminal and desktop
+apps and the contract tests are here; the render checks arrive in 5 (#8). Until its phase merges, a part described here, and
 the check that covers it, exists only in the prototype.
 
 ## Workspace
@@ -209,20 +208,31 @@ and mount the result on its renderer.
   whatever is left, before the process exits 0 — a second signal mid-shutdown
   exits 1 immediately.
 - **desktop** — Electron main process, `contextIsolation: true`,
-  `nodeIntegration: false`, `sandbox: true`, no preload. In dev
-  (`LTS_WEB_URL` set), it `loadURL`s the web dev server directly. In
-  production it serves `apps/web/dist` itself, over a registered `app://`
-  scheme (`app://web/...`) rather than `loadFile`-ing `index.html` as a
-  `file://` URL: Chromium fetches an ES module `<script type="module">` —
-  exactly what `@lts/web`'s build emits — in CORS mode even for a same-page
-  request, and `file://` has no origin to satisfy that against, so the
-  module script fails to load. A "standard, secure" custom scheme gives the
-  page a real, non-opaque origin (`app://web`) instead, so the module script
-  loads normally; this needed no change to `@lts/web`'s own build or its
-  plain-browser output. That real origin also lets `will-navigate` be
-  policed by an actual origin check, rather than an unconditional deny (the
-  only option `file://`'s opaque origin would have allowed). Packaging is
-  deferred.
+  `nodeIntegration: false`, `sandbox: true`, no preload, new windows denied.
+  `pnpm --filter @lts/desktop start` always serves `apps/web/dist` itself,
+  over a registered `app://` scheme (`app://web/...`) rather than
+  `loadFile`-ing `index.html` as a `file://` URL: Chromium fetches an ES
+  module `<script type="module">` — exactly what `@lts/web`'s build emits —
+  in CORS mode even for a same-page request, and `file://` has no origin to
+  satisfy that against, so the module script fails to load. A "standard,
+  secure" custom scheme gives the page a real, non-opaque origin
+  (`app://web`) instead, so the module script loads normally; this needed no
+  change to `@lts/web`'s own build or its plain-browser output. The handler
+  serves only `app://web` (another host or scheme is a 403) and keeps every
+  path inside `apps/web/dist` by path segment after decoding once
+  (`apps/desktop/src/resolve-app-path.test.ts`). That containment is
+  lexical: it assumes `apps/web/dist` is trusted build output, since a
+  symlink inside it could point outside. `will-navigate` and `will-redirect`
+  keep the window on the app it started on: the same scheme and host for
+  `app://web` (Node gives an `app:` URL the origin `"null"`, so this can't
+  be an origin comparison), the same origin for the dev server
+  (`apps/desktop/src/navigation.test.ts`). `pnpm dev:desktop`
+  (`scripts/dev-desktop.ts`) checks the web dev server answers, builds, and
+  starts Electron with `--lts-web-url=<url>`; the shell takes a dev URL only
+  from that argument, and only http on `localhost` or `127.0.0.1`
+  (`apps/desktop/src/start-url.test.ts`). Electron downloads its binary the
+  first time it runs, not at install. Packaging is deferred, and Windows
+  isn't checked.
 
 ## Verification
 
@@ -239,6 +249,8 @@ and mount the result on its renderer.
 | The SSH server's connection and session limits hold             | `apps/terminal/src/ssh-limits.test.ts`, `ssh-session.test.ts`, `session.test.ts`            | Phase 3b, #5 |
 | `shutdown()` ends every session gracefully, within its deadline | `apps/terminal/src/ssh-shutdown.test.ts`                                                    | Phase 3b, #5 |
 | SIGINT and SIGTERM exit 0, a second signal exits 1              | `apps/terminal/src/ssh-process.test.ts` — the server as a child process                     | Phase 3b, #5 |
+| app:// serves only `app://web`, contained by path segment       | `apps/desktop/src/resolve-app-path.test.ts`                                                 | Phase 4, #7  |
+| Navigation stays on the app it started on                       | `apps/desktop/src/navigation.test.ts`                                                       | Phase 4, #7  |
 | Electron loads the page                                         | `tests/render` via Playwright's Electron launcher                                           | Phase 5, #8  |
 | No `_`-prefixed member access as `obj._x` or `obj['_x']`        | ESLint `no-restricted-syntax` on `apps/` and `packages/` (`eslint.config.js`)               | Phase 1, #2  |
 
