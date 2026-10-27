@@ -21,18 +21,23 @@ const HEADER_TEXT = 'London TypeScript';
 // ~17.6 s locally, so the deadline is ~10×.
 const BACKLOG_MS = 180_000;
 
-// The channel-overflow teardown is prompt (the connection is destroyed, ~6 s
-// including the flood). This deadline sits well below the ~60 s that the
-// bug's slow fallback close takes without the fix, so the fix's prompt
-// teardown is what the test proves, not that slow path.
-const CHANNEL_TEARDOWN_MS = 45_000;
+// The channel-overflow teardown, flood included, measured at ~6 s locally
+// and ~12 s under load, so the deadline is 10× the slower. The test's other
+// deadlines are set far beyond it, so only the channel bound can end the
+// connection in time.
+const CHANNEL_TEARDOWN_MS = 120_000;
 
 describe(
   'a client that stops reading its SSH channel',
   { timeout: CHANNEL_TEARDOWN_MS + TEST_TIMEOUT_MS },
   () => {
     it('has the whole connection destroyed and its slot freed once 1 MiB waits in the channel', async () => {
-      const { server, port } = await serveServer({ maxSessions: 1, maxConnections: 1 });
+      const { server, port } = await serveServer({
+        maxSessions: 1,
+        maxConnections: 1,
+        handshakeTimeoutMs: 600_000,
+        preShellTimeoutMs: 600_000,
+      });
       const watched = await shell(await connect(port), { term: 'xterm', cols: 500, rows: 24 });
       await until(watched, () => watched.text().includes(PAGE_TEXT));
 
