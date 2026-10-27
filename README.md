@@ -63,10 +63,10 @@ pnpm ready          # the gate, then marks the commit as ready to push
 Each target's commands arrive with the phase that ports it:
 
 ```sh
-pnpm dev:web        # react-dom, in a browser (Phase 3a, #4)
-pnpm dev:scene      # react-three-fiber, in a browser (Phase 3c, #6)
-pnpm dev:terminal   # ink over SSH (Phase 3b, #5) — then, in another shell:
-pnpm dev:terminal:connect   # = ssh -p 2222 localhost, without host-key prompts
+pnpm dev:web        # react-dom, in a browser
+pnpm dev:scene      # react-three-fiber, in a browser
+pnpm dev:terminal   # ink over SSH on 127.0.0.1, for local development only — then, in another shell:
+pnpm dev:terminal:connect   # = ssh -p 2222 localhost (the resolved port), without host-key prompts
 pnpm dev:desktop    # Electron, wrapping the dom build (Phase 4, #7)
 
 pnpm test:render    # Playwright: each renderer visibly honours the layout union (Phase 5, #8)

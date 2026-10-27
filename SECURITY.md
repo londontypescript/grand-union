@@ -22,7 +22,12 @@ report is triaged. There is no bug bounty; this is a community meetup project.
 `apps/terminal` runs an SSH server that accepts unauthenticated, read-only
 sessions by design — anyone who connects gets the site rendered as text, no
 credentials required. That is intentional and is not itself a vulnerability.
-What _is_ in scope for this target:
+
+It is for local development: it listens on `127.0.0.1` only (tested in
+`apps/terminal/src/ssh-process.test.ts`), and running it on a public
+interface is unsupported. Its review found exhaustion cases that only a
+public host would meet; serving the terminal publicly is a separate design,
+tracked in #38. What _is_ in scope for this target:
 
 - **Escaping the ink render session** — reaching a shell, another user's
   session, the host filesystem, or anything beyond the page the server means
@@ -37,10 +42,14 @@ What _is_ in scope for this target:
   connection).
 
 The limits the server currently applies — connection, handshake,
-shell-less, per-connection session and concurrent shell caps — are listed
-in `docs/architecture.md` and tested in `apps/terminal/src/ssh-limits.test.ts`.
-A way around any of them is in scope. The server and that test are being
-ported here in Phase 3b (#5); until it merges, neither is in this repository.
+shell-less (with a forced close after a grace), per-connection session and
+concurrent shell caps, one shell per session, the idle timeout, the
+terminal-size cap, the minimum packet size, and the unread-output bound on
+both the channel and the connection socket (passing it ends the whole
+connection) — are listed in `docs/architecture.md` and tested in
+`apps/terminal/src/ssh-limits.test.ts`, `ssh-session.test.ts`,
+`ssh-backpressure.test.ts` and `session.test.ts`. A way around any of them
+is in scope.
 
 Being able to _connect_ without credentials, or to _view_ the rendered page,
 is expected behaviour, not a report.

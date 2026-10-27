@@ -1,0 +1,30 @@
+{
+  "name": "@lts/terminal",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev:local": "tsx --tsconfig tsconfig.runtime.json src/local.tsx",
+    "dev:server": "tsx --tsconfig tsconfig.runtime.json src/server.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint .",
+    "format:check": "prettier --check .",
+    "test": "vitest run --root ../.. --project unit apps/terminal/"
+  },
+  "dependencies": {
+    "@lts/pages": "workspace:*",
+    "@lts/renderer-ink": "workspace:*",
+    "@lts/vocabulary": "workspace:*",
+    "ink": "catalog:",
+    "react": "catalog:",
+    "ssh2": "1.17.0"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.6",
+    "@types/react": "catalog:",
+    "@types/ssh2": "1.15.6",
+    "@xterm/headless": "6.0.0",
+    "ink-testing-library": "4.0.0",
+    "tsx": "4.23.15",
+    "typescript": "catalog:"
+  }
+}

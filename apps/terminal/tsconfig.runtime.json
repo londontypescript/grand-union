@@ -1,0 +1,8 @@
+{
+  // Used only by `tsx` at runtime. tsx applies a tsconfig's compiler options
+  // (here: `jsx: react-jsx`) solely to files that tsconfig includes, so the
+  // workspace packages this app runs from source must be included too —
+  // otherwise tsx falls back to the classic JSX transform for them.
+  "extends": "../../tsconfig.base.json",
+  "include": ["src", "../../packages/*/src"]
+}

@@ -7,11 +7,10 @@ what comes next; this file says what exists and how it fits together.
 Decisions with alternatives live in `docs/adr/`.
 
 The code is being ported here from a prototype, one phase per issue. The
-vocabulary, pages, renderer-dom and contract tests are here; the web app
-arrives in 3a (#4), renderer-ink and the terminal in 3b (#5), renderer-three and
-the scene in 3c (#6), the desktop shell in 4 (#7) and the render checks in 5
-(#8). Until its phase merges, a part described here, and the check that
-covers it, exists only in the prototype.
+vocabulary, pages, the three renderers, the web, scene and terminal apps and
+the contract tests are here; the desktop shell arrives in 4 (#7) and the
+render checks in 5 (#8). Until its phase merges, a part described here, and
+the check that covers it, exists only in the prototype.
 
 ## Workspace
 
@@ -175,18 +174,33 @@ and mount the result on its renderer.
   relocatable across a plain web origin, `vite preview` in `tests/render`,
   and the custom scheme `desktop` serves it under (see below).
 - **scene** — Vite; the page floats on a panel in a 3D scene with gentle orbit.
-- **terminal** — `ssh2` server on port `2222` (`PORT`). Accepts any client
-  (read-only public site). `create-server.ts` owns the TCP listener and hands
+- **terminal** — `ssh2` server on port `2222` by default, from
+  `scripts/ports.ts` (`PORT`, or `LTS_PORT_BASE` + 2). For local development
+  only: it listens on `127.0.0.1` (checked by `ssh-process.test.ts`), and
+  serving it publicly is a separate design (#38). Accepts any client,
+  read-only. Compression is off (`ssh-compression.test.ts`): with zlib
+  negotiated, ssh2 1.17.0 crashes the process when a client drops
+  (mscdex/ssh2#1178). `create-server.ts` owns the TCP listener and hands
   each socket to ssh2 via `injectSocket`, so it can bound what an
   unauthenticated client holds: at most 256 connections, 10 s to finish the
-  handshake, 30 s without an open shell (re-armed when the last shell ends),
-  2 session channels per connection, 64 concurrent shells, and a 10-minute
-  idle timeout per shell. Host key generated on first run into
-  `apps/terminal/.data/` (gitignored), retried until ssh2 can parse it. Each
+  handshake, 30 s without an open shell (re-armed when the last shell ends,
+  and the socket forced shut 5 s after that deadline if a half-closed client
+  won't let go), 2 session channels open at once per connection, one shell per session
+  (a second `shell` request is refused), 64 concurrent shells, and a
+  10-minute idle timeout per shell. A client's terminal size is capped at
+  500×200; a shell channel is refused if the client's maximum packet size is
+  below 1 KiB (ssh2's write loop can't make progress below that); and when a
+  client's unread output passes 1 MiB — in the ssh2 channel's queue or the
+  connection socket's — the shell is ended and the whole connection
+  destroyed, so a client that stops reading can't make the server queue
+  without bound. The client's own text in a connection-error log line is escaped and
+  cut to 200 characters. Host key
+  generated on first run into `apps/terminal/.data/` (gitignored), or read
+  from `LTS_HOST_KEY_PATH` when set, retried until ssh2 can parse it. Each
   shell gets its own ink instance bound to the channel, sized from `pty-req`,
   resized on `window-change`, with `\n` written as `\r\n` since there is no
-  server-side pty; `q` or `Ctrl-C` ends it. `pnpm dev:terminal:local` (from
-  Phase 3b, #5) renders straight to the current terminal without SSH.
+  server-side pty; `q` or `Ctrl-C` ends it. `pnpm dev:terminal:local`
+  renders straight to the current terminal without SSH.
   `server.ts` catches SIGINT/SIGTERM and calls `createServer`'s
   `shutdown()`: it stops accepting
   connections, ends every open shell through its own `endSession` (the same
@@ -222,8 +236,9 @@ and mount the result on its renderer.
 | dom / three honour each `align` value                           | `tests/render` — layout measured, screenshot saved per value                                | Phase 5, #8  |
 | ink honours each `align` value                                  | `apps/terminal/src/home.test.tsx` — 80×24 text snapshots per value                          | Phase 3b, #5 |
 | The real SSH path renders and resizes correctly                 | `apps/terminal/src/ssh-render.test.ts` — real SSH client, screen read via `@xterm/headless` | Phase 3b, #5 |
-| The SSH server's connection and session limits hold             | `apps/terminal/src/ssh-limits.test.ts`                                                      | Phase 3b, #5 |
+| The SSH server's connection and session limits hold             | `apps/terminal/src/ssh-limits.test.ts`, `ssh-session.test.ts`, `session.test.ts`            | Phase 3b, #5 |
 | `shutdown()` ends every session gracefully, within its deadline | `apps/terminal/src/ssh-shutdown.test.ts`                                                    | Phase 3b, #5 |
+| SIGINT and SIGTERM exit 0, a second signal exits 1              | `apps/terminal/src/ssh-process.test.ts` — the server as a child process                     | Phase 3b, #5 |
 | Electron loads the page                                         | `tests/render` via Playwright's Electron launcher                                           | Phase 5, #8  |
 | No `_`-prefixed member access as `obj._x` or `obj['_x']`        | ESLint `no-restricted-syntax` on `apps/` and `packages/` (`eslint.config.js`)               | Phase 1, #2  |
 
