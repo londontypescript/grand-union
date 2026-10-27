@@ -1,7 +1,7 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import net from 'node:net';
-import { tmpdir } from 'node:os';
+import { networkInterfaces, tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -24,6 +24,12 @@ const SHUTDOWN_DEADLINE_MS = 5000;
 // Above each test's own waits plus cleanup, so a failure has its own
 // message, never Vitest's timeout.
 const TEST_TIMEOUT_MS = 60_000;
+
+// One of this machine's own non-loopback IPv4 addresses: a server bound to
+// every interface answers on it, one bound to loopback refuses it.
+const NETWORK_ADDRESS = Object.values(networkInterfaces())
+  .flat()
+  .find((entry) => entry?.family === 'IPv4' && !entry.internal)?.address;
 
 interface Exit {
   readonly code: number | null;
@@ -170,11 +176,7 @@ async function untilStdout(run: Run, matches: RegExp, ms: number): Promise<RegEx
 
 /** The port the server says it listens on. */
 async function listeningPort(run: Run): Promise<number> {
-  const [, port] = await untilStdout(
-    run,
-    /\[terminal\] listening on 0\.0\.0\.0:(\d+)\n/,
-    STARTUP_MS,
-  );
+  const [, port] = await untilStdout(run, /\[terminal\] listening on [\d.]+:(\d+)\n/, STARTUP_MS);
   return Number(port);
 }
 
@@ -253,6 +255,30 @@ describe('the server process: its port', { timeout: TEST_TIMEOUT_MS }, () => {
     );
     await identifiedSocket(wanted);
   });
+
+  // Skipped only on a machine with no network interface but loopback.
+  it.skipIf(NETWORK_ADDRESS === undefined)(
+    'refuses a connection to this machine’s network address, not only loopback',
+    async () => {
+      const run = start({ PORT: String(await freePort()), LTS_HOST_KEY_PATH: hostKeyFile() });
+      const port = await listeningPort(run);
+
+      const outcome = await new Promise<string>((resolve) => {
+        const socket = net.createConnection({ host: NETWORK_ADDRESS, port });
+        sockets.push(socket);
+        socket.on('connect', () => {
+          resolve('connected');
+        });
+        socket.on('error', (error: NodeJS.ErrnoException) => {
+          resolve(error.code ?? error.message);
+        });
+      });
+
+      expect(outcome, `a connection to ${String(NETWORK_ADDRESS)}:${String(port)}`).toBe(
+        'ECONNREFUSED',
+      );
+    },
+  );
 });
 
 describe('the server process: its host key', { timeout: TEST_TIMEOUT_MS }, () => {

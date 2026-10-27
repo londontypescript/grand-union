@@ -42,8 +42,13 @@ const { server, shutdown } = createServer({
   maxSessionsPerConnection: MAX_SESSIONS_PER_CONNECTION,
 });
 
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`[terminal] listening on 0.0.0.0:${String(PORT)}`);
+// Loopback only: this server is for local development, and its review
+// found ways a hostile client could still exhaust it, so it must not be
+// reachable from the network. Public hosting is a separate design (#38).
+const HOST = '127.0.0.1';
+
+server.listen(PORT, HOST, () => {
+  console.log(`[terminal] listening on ${HOST}:${String(PORT)}`);
 });
 
 // A host stopping the service sends one of these; visitors mid-session
