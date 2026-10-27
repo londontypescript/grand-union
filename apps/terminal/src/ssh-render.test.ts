@@ -13,6 +13,9 @@ const { Client } = ssh2;
 const HEADER_TEXT = 'London TypeScript';
 const COLS = 100;
 const ROWS = 30;
+// A 'q' closes the channel within a few milliseconds; this is far longer and
+// still well under the suite timeout.
+const GENEROUS_MS = 5000;
 // Above each test's own waits (connecting and each stable frame are bounded
 // at 5 s and 4 s) plus cleanup (closing the server is bounded at 5 s), so a
 // broken render fails with its own message, never with Vitest's timeout.
@@ -280,7 +283,14 @@ describe('ssh render', { timeout: TEST_TIMEOUT_MS }, () => {
         });
 
         stream.write('q');
-        await closed;
+        // Its own deadline (well under the suite timeout), so a 'q' the server
+        // doesn't act on fails here with this message rather than hanging.
+        await Promise.race([
+          closed,
+          sleep(GENEROUS_MS).then(() => {
+            throw new Error(`the channel did not close after "q" within ${String(GENEROUS_MS)}ms`);
+          }),
+        ]);
 
         expect(rawText()).toContain('Goodbye');
       },
