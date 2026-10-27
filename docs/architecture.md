@@ -185,7 +185,7 @@ and mount the result on its renderer.
   unauthenticated client holds: at most 256 connections, 10 s to finish the
   handshake, 30 s without an open shell (re-armed when the last shell ends,
   and the socket forced shut 5 s after that deadline if a half-closed client
-  won't let go), 2 session channels per connection, one shell per session
+  won't let go), 2 session channels open at once per connection, one shell per session
   (a second `shell` request is refused), 64 concurrent shells, and a
   10-minute idle timeout per shell. A client's terminal size is capped at
   500×200; a shell channel is refused if the client's maximum packet size is

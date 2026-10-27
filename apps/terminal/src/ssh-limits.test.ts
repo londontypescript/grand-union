@@ -163,6 +163,30 @@ describe('ssh limits', { timeout: TEST_TIMEOUT_MS }, () => {
       await closeServer(server);
     }
   });
+
+  it('opens a new session once the last one closed, as a shared OpenSSH connection does', async () => {
+    const { server } = createServer(testOptions({ maxSessionsPerConnection: 1 }));
+    const port = await listen(server);
+    const client = new Client();
+
+    try {
+      await connectReady(client, port);
+
+      for (let run = 1; run <= 3; run += 1) {
+        const stream = await openShell(client).catch((error: unknown) => {
+          throw new Error(`session ${String(run)} of 3 on one connection was refused`, {
+            cause: error,
+          });
+        });
+        await waitForEvent(stream, 'data', GENEROUS_MS);
+        stream.write('q');
+        await waitForEvent(stream, 'close', GENEROUS_MS);
+      }
+    } finally {
+      client.destroy();
+      await closeServer(server);
+    }
+  });
 });
 
 function openShell(client: SshClient): Promise<ClientChannel> {

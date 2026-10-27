@@ -13,8 +13,8 @@ const HANDSHAKE_TIMEOUT_MS = 10_000;
 // Long enough to run `ssh host` and read the prompt; short enough that
 // `ssh -N` connections don't sit open indefinitely.
 const PRE_SHELL_TIMEOUT_MS = 30_000;
-// One shell is normal use; two tolerates a client re-opening a session
-// without allowing unbounded channel-open spam on one connection.
+// Open at once on one connection: one shell is normal use; two tolerates a
+// client re-opening a session without allowing unbounded channel-open spam.
 const MAX_SESSIONS_PER_CONNECTION = 2;
 
 // PORT, or LTS_PORT_BASE + 2, or 2222: the repo's one port resolver decides.

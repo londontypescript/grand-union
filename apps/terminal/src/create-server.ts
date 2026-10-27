@@ -186,8 +186,15 @@ export function createServer(options: CreateServerOptions): TerminalServer {
           return;
         }
         sessionCount += 1;
+        const session = accept();
+        // The cap counts open sessions, not every one ever opened: OpenSSH
+        // sharing one connection (ControlMaster) opens a fresh session for
+        // each `ssh` run, and the third would otherwise be refused.
+        session.once('close', () => {
+          sessionCount -= 1;
+        });
 
-        attachSession(accept(), {
+        attachSession(session, {
           align: options.align,
           limiter,
           connectionWritableLength: () => connectionSocket?.writableLength ?? 0,
