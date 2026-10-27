@@ -64,6 +64,11 @@ export class FakeSession {
     return this.#request('pty', { cols, rows, width: 0, height: 0, term: 'xterm', modes: {} });
   }
 
+  /** Sends `window-change`, which, as real clients send it, wants no reply. */
+  windowChange(cols: number, rows: number): void {
+    this.#emitter.emit('window-change', undefined, undefined, { cols, rows, width: 0, height: 0 });
+  }
+
   /** Sends `env`, which a read-only page has no use for. */
   env(key: string, val: string): RequestReply {
     return this.#request('env', { key, val });

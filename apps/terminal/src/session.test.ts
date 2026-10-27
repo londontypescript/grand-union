@@ -86,6 +86,51 @@ describe('the size a shell starts at', () => {
   });
 });
 
+// Past the 500×200 cap, but small enough that Ink can still draw it if the
+// cap is missing: the billions of cells a client can ask for would take the
+// test run down instead of failing these tests.
+const PAST_THE_CAP = { cols: 1000, rows: 400 };
+
+describe('a size past 500×200', () => {
+  it('is cut to 500×200 when the client reports it in pty-req', () => {
+    const session = new FakeSession();
+    session.pty(PAST_THE_CAP.cols, PAST_THE_CAP.rows);
+
+    const channel = shellOn(session);
+
+    expect({ columns: channel.columns, rows: channel.rows }).toEqual({ columns: 500, rows: 200 });
+  });
+
+  it('is cut to 500×200 when the client reports it in window-change', () => {
+    const session = new FakeSession();
+    const channel = shellOn(session);
+
+    session.windowChange(PAST_THE_CAP.cols, PAST_THE_CAP.rows);
+
+    expect({ columns: channel.columns, rows: channel.rows }).toEqual({ columns: 500, rows: 200 });
+  });
+});
+
+describe('a window-change to the size the shell already has', () => {
+  // Ink lays the whole page out again on every resize event, even when the
+  // frame it then draws is the one already on screen.
+  it('is not passed on to Ink', () => {
+    const session = new FakeSession();
+    const channel = shellOn(session);
+    let resizes = 0;
+    channel.on('resize', () => {
+      resizes += 1;
+    });
+
+    session.windowChange(0, 0);
+    session.windowChange(80, 24);
+    session.windowChange(120, 40);
+    session.windowChange(120, 40);
+
+    expect(resizes, 'resize events for 0×0 and 80×24 at 80×24, then 120×40 twice').toBe(1);
+  });
+});
+
 describe('an env request that wants a reply', () => {
   it('is refused', () => {
     expect(new FakeSession().env('TEST', 'value')).toEqual({ accepted: 0, rejected: 1 });

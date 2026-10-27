@@ -200,6 +200,21 @@ describe('a shell with an absent or empty size', { timeout: TEST_TIMEOUT_MS }, (
   });
 });
 
+describe('a shell claiming an enormous terminal', { timeout: TEST_TIMEOUT_MS }, () => {
+  // Drawn at 500×200, which `session.test.ts` checks. Without that cap Ink
+  // would lay out ten billion cells and exhaust this test process.
+  it('renders the page when the client reported a 100000×100000 pty', async () => {
+    const watched = await shell(await connect(await serve()), {
+      term: 'xterm',
+      cols: 100_000,
+      rows: 100_000,
+    });
+    await until(watched, () => watched.text().includes(PAGE_TEXT));
+
+    expect(watched.text()).toContain(PAGE_TEXT);
+  });
+});
+
 describe('requests a read-only page refuses', { timeout: TEST_TIMEOUT_MS }, () => {
   it('refuses exec', async () => {
     const client = await connect(await serve());

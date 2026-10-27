@@ -10,6 +10,11 @@ import type { SessionLimiter } from './session-limiter.ts';
 // somewhere) gets this size rather than `0×0`.
 const DEFAULT_SIZE = { cols: 80, rows: 24 };
 
+// The largest terminal a shell is drawn for. Ink lays out every cell of the
+// terminal on each render, so a client mustn't choose how many there are.
+const MAX_COLS = 500;
+const MAX_ROWS = 200;
+
 const IDLE_TIMEOUT_MS = 10 * 60 * 1000;
 
 // The single byte a plain (non-paste) keypress of `q` or Ctrl+C ('\x03',
@@ -43,6 +48,18 @@ function positiveOr(value: number, fallback: number): number {
 }
 
 /**
+ * The size a shell is drawn at for one a client reported in `pty-req` or
+ * `window-change`: `0` falls back to 80×24, and anything past 500×200 is
+ * cut to it, so a larger window shows the page laid out for 500×200.
+ */
+function normaliseSize(cols: number, rows: number): { cols: number; rows: number } {
+  return {
+    cols: Math.min(positiveOr(cols, DEFAULT_SIZE.cols), MAX_COLS),
+    rows: Math.min(positiveOr(rows, DEFAULT_SIZE.rows), MAX_ROWS),
+  };
+}
+
+/**
  * Calls `fn` if it exists. `@types/ssh2` types every session sub-request's
  * `accept`/`reject` as an always-present function, but ssh2's actual
  * runtime (`lib/server.js`'s `CHANNEL_REQUEST` handler) only constructs
@@ -70,16 +87,14 @@ export function attachSession(session: Session, options: SessionOptions): void {
   let onResize: ((cols: number, rows: number) => void) | undefined;
 
   session.on('pty', (accept, reject, info) => {
-    size = {
-      cols: positiveOr(info.cols, DEFAULT_SIZE.cols),
-      rows: positiveOr(info.rows, DEFAULT_SIZE.rows),
-    };
+    size = normaliseSize(info.cols, info.rows);
     callIfPresent(accept);
   });
 
   session.on('window-change', (accept, reject, info) => {
     callIfPresent(accept);
-    onResize?.(positiveOr(info.cols, DEFAULT_SIZE.cols), positiveOr(info.rows, DEFAULT_SIZE.rows));
+    const next = normaliseSize(info.cols, info.rows);
+    onResize?.(next.cols, next.rows);
   });
 
   session.on('exec', (accept, reject) => {
@@ -107,6 +122,10 @@ export function attachSession(session: Session, options: SessionOptions): void {
     const stdio = toPtyStdio(channel, size);
     const nodeStdio = asNodeStdio(stdio);
     onResize = (cols, rows) => {
+      // Ink would lay the page out again only to draw the frame it shows.
+      if (cols === stdio.columns && rows === stdio.rows) {
+        return;
+      }
       resizePtyStdio(stdio, cols, rows);
     };
 
