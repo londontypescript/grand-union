@@ -49,7 +49,8 @@ afterEach(async () => {
   for (const run of runs.splice(0)) {
     if (run.exit === undefined) {
       run.child.kill('SIGKILL');
-      await run.exited;
+      // Bounded, so a child that somehow won't die can't hang the whole run.
+      await Promise.race([run.exited, sleep(STOP_MS)]);
     }
   }
   for (const dir of dirs.splice(0)) {
@@ -99,14 +100,15 @@ async function freeBase(): Promise<number> {
 }
 
 /** Starts the server with `set` on top of this process's environment, less
- * the variables these tests decide. */
-function start(set: Readonly<Record<string, string>>): Run {
+ * the variables these tests decide. `exec` overrides the node binary, so a
+ * test can make the spawn itself fail. */
+function start(set: Readonly<Record<string, string>>, exec: string = process.execPath): Run {
   const inherited = Object.fromEntries(
     Object.entries(process.env).filter(
       ([key]) => key !== 'PORT' && key !== 'LTS_PORT_BASE' && key !== 'LTS_HOST_KEY_PATH',
     ),
   );
-  const child = spawn(process.execPath, ['--import', 'tsx', SERVER], {
+  const child = spawn(exec, ['--import', 'tsx', SERVER], {
     cwd: PACKAGE_DIR,
     env: { ...inherited, TSX_TSCONFIG_PATH: RUNTIME_TSCONFIG, ...set },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -129,7 +131,11 @@ function start(set: Readonly<Record<string, string>>): Run {
         resolve(run.exit);
       });
       child.once('error', (error) => {
+        // A failed spawn fires `error` and then no `exit`, so settle the run
+        // here too; otherwise every wait on it, cleanup included, would hang.
         stderr += `\n[spawn error] ${error.message}`;
+        run.exit = { code: null, signal: null };
+        resolve(run.exit);
       });
     }),
     exit: undefined,
@@ -304,5 +310,24 @@ describe('the server process: stopping', { timeout: TEST_TIMEOUT_MS }, () => {
       code: 1,
       signal: null,
     });
+  });
+});
+
+describe('the server process: a spawn that fails', { timeout: TEST_TIMEOUT_MS }, () => {
+  it('settles the run instead of hanging when the child cannot be spawned', async () => {
+    // A node binary that does not exist: `spawn` fires `error`, never `exit`.
+    const missingExec = path.join(tempDir(), 'no-such-node');
+    const run = start(
+      { PORT: String(await freePort()), LTS_HOST_KEY_PATH: hostKeyFile() },
+      missingExec,
+    );
+
+    const exit = await exitWithin(run, STOP_MS, 'a failed spawn should settle the run');
+
+    expect(exit, `the run settles with a null exit; ${describeRun(run)}`).toEqual({
+      code: null,
+      signal: null,
+    });
+    expect(run.stderr(), 'the spawn error is recorded').toContain('spawn error');
   });
 });
