@@ -9,6 +9,9 @@
   "scripts": {
     "dev:web": "pnpm --filter @lts/web dev",
     "dev:scene": "pnpm --filter @lts/scene dev",
+    "dev:terminal": "pnpm --filter @lts/terminal dev:server",
+    "dev:terminal:local": "pnpm --filter @lts/terminal dev:local",
+    "dev:terminal:connect": "node scripts/ssh-connect.ts",
     "typecheck": "tsc -p tsconfig.json",
     "lint": "eslint .",
     "format": "prettier --write .",

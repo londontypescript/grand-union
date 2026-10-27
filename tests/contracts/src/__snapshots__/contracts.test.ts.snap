@@ -5,6 +5,11 @@ exports[`a missing registry key fails to compile > renderer-dom: removing Dividi
   Property 'DividingLine' is missing in type '{ Stack: ({ align, children }: StackProps) => ReactElement; Header: ({ children }: HeaderProps) => ReactElement; Paragraph: ({ children }: ParagraphProps) => ReactElement; Quote: ({ children }: QuoteProps) => ReactElement; }' but required in type 'Vocabulary'."
 `;
 
+exports[`a missing registry key fails to compile > renderer-ink: removing DividingLine reports a diagnostic in registry.ts > renderer-ink/missing-key 1`] = `
+"Type '{ Stack: ({ align, children }: StackProps) => ReactElement; Header: ({ children }: HeaderProps) => ReactElement; Paragraph: ({ children }: ParagraphProps) => ReactElement; Quote: ({ children }: QuoteProps) => ReactElement; }' does not satisfy the expected type 'Vocabulary'.
+  Property 'DividingLine' is missing in type '{ Stack: ({ align, children }: StackProps) => ReactElement; Header: ({ children }: HeaderProps) => ReactElement; Paragraph: ({ children }: ParagraphProps) => ReactElement; Quote: ({ children }: QuoteProps) => ReactElement; }' but required in type 'Vocabulary'."
+`;
+
 exports[`a missing registry key fails to compile > renderer-three: removing DividingLine reports a diagnostic in registry.ts > renderer-three/missing-key 1`] = `
 "Type '{ Stack: ({ align, children }: StackProps) => ReactElement; Header: ({ children }: HeaderProps) => ReactElement; Paragraph: ({ children }: ParagraphProps) => ReactElement; Quote: ({ children }: QuoteProps) => ReactElement; }' does not satisfy the expected type 'Vocabulary'.
   Property 'DividingLine' is missing in type '{ Stack: ({ align, children }: StackProps) => ReactElement; Header: ({ children }: HeaderProps) => ReactElement; Paragraph: ({ children }: ParagraphProps) => ReactElement; Quote: ({ children }: QuoteProps) => ReactElement; }' but required in type 'Vocabulary'."
@@ -13,6 +18,11 @@ exports[`a missing registry key fails to compile > renderer-three: removing Divi
 exports[`a new VerticalAlign member fails every total map > adding 'stretch' to VERTICAL_ALIGN reports a diagnostic in every total map > renderer-dom/new-vertical-align-member 1`] = `
 "Type '{ top: "flex-start"; middle: "center"; bottom: "flex-end"; }' does not satisfy the expected type 'Record<"top" | "middle" | "bottom" | "stretch", JustifyContent | undefined>'.
   Property 'stretch' is missing in type '{ top: "flex-start"; middle: "center"; bottom: "flex-end"; }' but required in type 'Record<"top" | "middle" | "bottom" | "stretch", JustifyContent | undefined>'."
+`;
+
+exports[`a new VerticalAlign member fails every total map > adding 'stretch' to VERTICAL_ALIGN reports a diagnostic in every total map > renderer-ink/new-vertical-align-member 1`] = `
+"Type '{ top: "flex-start"; middle: "center"; bottom: "flex-end"; }' does not satisfy the expected type 'Record<"top" | "middle" | "bottom" | "stretch", "space-around" | "space-between" | "space-evenly" | "center" | "flex-end" | "flex-start" | undefined>'.
+  Property 'stretch' is missing in type '{ top: "flex-start"; middle: "center"; bottom: "flex-end"; }' but required in type 'Record<"top" | "middle" | "bottom" | "stretch", "space-around" | "space-between" | "space-evenly" | "center" | "flex-end" | "flex-start" | undefined>'."
 `;
 
 exports[`a new VerticalAlign member fails every total map > adding 'stretch' to VERTICAL_ALIGN reports a diagnostic in every total map > renderer-three/new-vertical-align-member 1`] = `
@@ -25,11 +35,18 @@ exports[`a new Vocabulary member fails every registry > adding ProbeComponent to
   Property 'ProbeComponent' is missing in type '{ Stack: ({ align, children }: StackProps) => ReactElement; Header: ({ children }: HeaderProps) => ReactElement; Paragraph: ({ children }: ParagraphProps) => ReactElement; DividingLine: () => ReactElement; Quote: ({ children }: QuoteProps) => ReactElement; }' but required in type 'Vocabulary'."
 `;
 
+exports[`a new Vocabulary member fails every registry > adding ProbeComponent to Vocabulary reports a diagnostic in every discovered registry > renderer-ink/new-vocabulary-member 1`] = `
+"Type '{ Stack: ({ align, children }: StackProps) => ReactElement; Header: ({ children }: HeaderProps) => ReactElement; Paragraph: ({ children }: ParagraphProps) => ReactElement; DividingLine: () => ReactElement; Quote: ({ children }: QuoteProps) => ReactElement; }' does not satisfy the expected type 'Vocabulary'.
+  Property 'ProbeComponent' is missing in type '{ Stack: ({ align, children }: StackProps) => ReactElement; Header: ({ children }: HeaderProps) => ReactElement; Paragraph: ({ children }: ParagraphProps) => ReactElement; DividingLine: () => ReactElement; Quote: ({ children }: QuoteProps) => ReactElement; }' but required in type 'Vocabulary'."
+`;
+
 exports[`a new Vocabulary member fails every registry > adding ProbeComponent to Vocabulary reports a diagnostic in every discovered registry > renderer-three/new-vocabulary-member 1`] = `
 "Type '{ Stack: ({ align, children }: StackProps) => ReactElement; Header: ({ children }: HeaderProps) => ReactElement; Paragraph: ({ children }: ParagraphProps) => ReactElement; DividingLine: () => ReactElement; Quote: ({ children }: QuoteProps) => ReactElement; }' does not satisfy the expected type 'Vocabulary'.
   Property 'ProbeComponent' is missing in type '{ Stack: ({ align, children }: StackProps) => ReactElement; Header: ({ children }: HeaderProps) => ReactElement; Paragraph: ({ children }: ParagraphProps) => ReactElement; DividingLine: () => ReactElement; Quote: ({ children }: QuoteProps) => ReactElement; }' but required in type 'Vocabulary'."
 `;
 
 exports[`an excess registry key fails to compile > renderer-dom: a typo'd extra key reports a diagnostic in registry.ts > renderer-dom/excess-key 1`] = `"Object literal may only specify known properties, but 'DivdingLine' does not exist in type 'Vocabulary'. Did you mean to write 'DividingLine'?"`;
+
+exports[`an excess registry key fails to compile > renderer-ink: a typo'd extra key reports a diagnostic in registry.ts > renderer-ink/excess-key 1`] = `"Object literal may only specify known properties, but 'DivdingLine' does not exist in type 'Vocabulary'. Did you mean to write 'DividingLine'?"`;
 
 exports[`an excess registry key fails to compile > renderer-three: a typo'd extra key reports a diagnostic in registry.ts > renderer-three/excess-key 1`] = `"Object literal may only specify known properties, but 'DivdingLine' does not exist in type 'Vocabulary'. Did you mean to write 'DividingLine'?"`;
