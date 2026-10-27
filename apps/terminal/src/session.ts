@@ -119,7 +119,11 @@ export function attachSession(session: Session, options: SessionOptions): void {
     }
 
     const channel = accept();
-    const stdio = toPtyStdio(channel, size);
+    const stdio = toPtyStdio(channel, size, () => {
+      // The client has stopped reading. This runs inside Ink's own write, so
+      // the shell ends once that write has returned.
+      queueMicrotask(endSession);
+    });
     const nodeStdio = asNodeStdio(stdio);
     onResize = (cols, rows) => {
       // Ink would lay the page out again only to draw the frame it shows.

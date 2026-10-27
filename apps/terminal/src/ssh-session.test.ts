@@ -300,3 +300,36 @@ describe('quitting', { timeout: TEST_TIMEOUT_MS }, () => {
     expect(watched.text(), 'a single q says goodbye').toContain('Goodbye');
   });
 });
+
+// Time for a client that stops reading to have its shell ended: up to 5 MiB
+// of output are drawn first (2 MiB ssh2 holds unread, 2 MiB of window
+// credit, then the 1 MiB queue), at about a megabyte a second. It took
+// 5.7 s at most, measured locally.
+const BACKLOG_MS = 75_000;
+
+describe('a client that stops reading', { timeout: BACKLOG_MS + TEST_TIMEOUT_MS }, () => {
+  it('has its shell ended, and the shell cap released, once 1 MiB of output waits for it', async () => {
+    const port = await serve({ maxSessions: 1 });
+    const watched = await shell(await connect(port), { term: 'xterm', cols: 500, rows: 24 });
+    await until(watched, () => watched.text().includes(PAGE_TEXT));
+
+    // From here on nothing is read: once 2 MiB sit unread, ssh2 stops giving
+    // the server window credit, and what the server writes has to queue.
+    watched.stream.pause();
+    const deadline = Date.now() + BACKLOG_MS;
+    let width = 500;
+    while (watched.exitCode === undefined && Date.now() < deadline) {
+      // Each resize makes the server draw the page again, about 2 KB of it.
+      for (let i = 0; i < 10; i += 1) {
+        width = width === 500 ? 400 : 500;
+        watched.stream.setWindow(24, width, 0, 0);
+      }
+      await sleep(10);
+    }
+
+    expect(watched.exitCode, 'the exit status of the shell the client stopped reading').toBe(0);
+    const next = await shell(await connect(port), PTY);
+    await until(next, () => next.text().includes(PAGE_TEXT));
+    expect(next.text(), 'a new shell, once that one has ended').not.toContain('at capacity');
+  });
+});

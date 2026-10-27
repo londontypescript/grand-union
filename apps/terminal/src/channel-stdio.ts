@@ -21,6 +21,11 @@ export interface PtyStdio extends ServerChannel {
 
 type WriteCallback = (error: Error | null | undefined) => void;
 
+// The most output that may wait in a channel for its client. Ink writes
+// whether or not the client grants window credit, so without a bound a
+// client that stops reading would make ssh2 queue output without end.
+const MAX_QUEUED_OUTPUT_BYTES = 1024 * 1024;
+
 /**
  * Translates every bare `\n` to `\r\n` — the job a real pty's `ONLCR`
  * output flag does. An SSH client in raw mode moves the cursor down on
@@ -39,11 +44,13 @@ export function toCrlf(text: string): string {
  * descriptor playing all three roles. `initial` comes from the session's
  * `pty-req` (or the 80×24 default for a channel that never sent one).
  * String writes get `\n` → `\r\n` translation (see {@link toCrlf}); Ink
- * only ever writes strings.
+ * only ever writes strings. `onBacklog` is called after any write that
+ * leaves more than 1 MiB queued in the channel.
  */
 export function toPtyStdio(
   channel: ServerChannel,
   initial: { readonly cols: number; readonly rows: number },
+  onBacklog: () => void,
 ): PtyStdio {
   const stdio = channel as PtyStdio;
   stdio.columns = initial.cols;
@@ -62,9 +69,14 @@ export function toPtyStdio(
     callback?: WriteCallback,
   ): boolean => {
     const data = typeof chunk === 'string' ? toCrlf(chunk) : chunk;
-    return typeof encoding === 'function'
-      ? write(data, encoding)
-      : write(data, encoding ?? 'utf8', callback);
+    const flushed =
+      typeof encoding === 'function'
+        ? write(data, encoding)
+        : write(data, encoding ?? 'utf8', callback);
+    if (channel.writableLength > MAX_QUEUED_OUTPUT_BYTES) {
+      onBacklog();
+    }
+    return flushed;
   };
   stdio.ref = () => stdio;
   stdio.unref = () => stdio;
