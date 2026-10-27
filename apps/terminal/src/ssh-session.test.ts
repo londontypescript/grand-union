@@ -331,11 +331,12 @@ describe('quitting', { timeout: TEST_TIMEOUT_MS }, () => {
   });
 });
 
-// Time for a client that stops reading to have its shell ended: up to 5 MiB
-// of output are drawn first (2 MiB ssh2 holds unread, 2 MiB of window
-// credit, then the 1 MiB queue), at about a megabyte a second. It took
-// 5.7 s at most, measured locally.
-const BACKLOG_MS = 75_000;
+// Time for a client that stops reading to have its session torn down, with
+// ten times the headroom the timing rule asks for. The server must first
+// draw enough to fill the SSH window and then the 1 MiB queue; the TCP case
+// (many small 500×200 frames while the socket backs up) is the slower of
+// the two, measured at ~17.6 s locally, so the deadline is ~10× that.
+const BACKLOG_MS = 180_000;
 
 describe('a client that stops reading', { timeout: BACKLOG_MS + TEST_TIMEOUT_MS }, () => {
   it('has its shell ended, and the shell cap released, once 1 MiB of output waits for it', async () => {
