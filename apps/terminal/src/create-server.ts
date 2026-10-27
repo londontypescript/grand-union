@@ -132,7 +132,13 @@ export function createServer(options: CreateServerOptions): TerminalServer {
   // not it had a shell open.
   const endSessionsByClient = new Map<Connection, Set<() => void>>();
 
-  const sshServer = new Server({ hostKeys: [options.hostKey] }, (client, info) => {
+  // No compression. With zlib negotiated (which `ssh -C` asks for, and the
+  // client's preference wins), ssh2 1.17.0 frees the compressor before it
+  // closes the channels when a client drops, so a shell's last frame throws
+  // `Invalid Zlib instance` from a nextTick and takes the process down
+  // (mscdex/ssh2#1178). OpenSSH falls back to `none` without complaint.
+  const algorithms = { compress: ['none' as const] };
+  const sshServer = new Server({ hostKeys: [options.hostKey], algorithms }, (client, info) => {
     log(`[terminal] connect ${describeClient(info)}`);
 
     const endSessions = new Set<() => void>();
