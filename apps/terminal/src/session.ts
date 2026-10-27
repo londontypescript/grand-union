@@ -175,20 +175,21 @@ export function attachSession(session: Session, options: SessionOptions): void {
     let overflowed = false;
     const stdio = toPtyStdio(channel, size, {
       connectionWritableLength: () => options.connectionWritableLength?.() ?? 0,
-      onOverflow: (source) => {
+      onOverflow: () => {
         if (overflowed) {
           return;
         }
         overflowed = true;
         // The latch inside the adapter has already stopped further writes.
-        // Tear down from a microtask, out of Ink's own write: end the shell
-        // (goodbye attempt, unmount, slot released) and, when it was the
-        // connection socket that overran, destroy the whole connection.
+        // Tear down from a microtask, out of Ink's own write: attempt the
+        // shell's own ending (unmount, slot released, a goodbye the stalled
+        // client may never read) and then destroy the whole connection, so
+        // teardown is bounded whichever queue — the channel's or the
+        // socket's — overran. The goodbye/exit/end sit behind the same
+        // stalled write, so the destroy is what actually frees the slot.
         queueMicrotask(() => {
           endSession();
-          if (source === 'connection') {
-            options.destroyConnection?.();
-          }
+          options.destroyConnection?.();
         });
       },
     });

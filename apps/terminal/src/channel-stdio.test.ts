@@ -6,14 +6,14 @@ import { FakeChannel } from './session-test-support.ts';
 
 const MIB = 1024 * 1024;
 
-/** A guard that records every overflow and reads a fixed connection queue length. */
-function recordingGuard(connectionWritableLength = 0): BacklogGuard & { overflows: string[] } {
-  const overflows: string[] = [];
+/** A guard that counts overflows and reads a fixed connection queue length. */
+function recordingGuard(connectionWritableLength = 0): BacklogGuard & { count: () => number } {
+  let overflows = 0;
   return {
-    overflows,
+    count: () => overflows,
     connectionWritableLength: () => connectionWritableLength,
-    onOverflow: (source) => {
-      overflows.push(source);
+    onOverflow: () => {
+      overflows += 1;
     },
   };
 }
@@ -45,7 +45,7 @@ describe('toPtyStdio', () => {
     expect(channel.text()).toBe('a\r\nb\r\nc\r\nd\r\n');
   });
 
-  it('overflows on "channel" once more than 1 MiB waits in the channel itself', () => {
+  it('overflows once more than 1 MiB waits in the channel itself', () => {
     const channel = new StalledChannel();
     const guard = recordingGuard();
     const stdio = toPtyStdio(channel as unknown as ServerChannel, { cols: 80, rows: 24 }, guard);
@@ -54,15 +54,13 @@ describe('toPtyStdio', () => {
     for (let written = 0; written < 1024; written += 1) {
       stdio.write(kibibyte);
     }
-    expect(guard.overflows, 'no overflow with exactly 1 MiB waiting').toEqual([]);
+    expect(guard.count(), 'no overflow with exactly 1 MiB waiting').toBe(0);
 
     stdio.write('x');
-    expect(guard.overflows, 'one "channel" overflow once more than 1 MiB waits').toEqual([
-      'channel',
-    ]);
+    expect(guard.count(), 'one overflow once more than 1 MiB waits in the channel').toBe(1);
   });
 
-  it('overflows on "connection" when the socket queue passes 1 MiB though the channel is empty', () => {
+  it('overflows when the socket queue passes 1 MiB though the channel is empty', () => {
     // A channel that drains every write (writableLength stays 0), but the
     // connection socket behind it is backed up past the bound.
     const channel = new FakeChannel();
@@ -71,10 +69,10 @@ describe('toPtyStdio', () => {
 
     stdio.write('x');
 
-    expect(guard.overflows, 'one "connection" overflow').toEqual(['connection']);
+    expect(guard.count(), 'one overflow from the connection socket').toBe(1);
   });
 
-  it('writes nothing more once it has overflowed', () => {
+  it('writes nothing more, but settles later callbacks, once it has overflowed', async () => {
     const channel = new StalledChannel();
     const guard = recordingGuard();
     const stdio = toPtyStdio(channel as unknown as ServerChannel, { cols: 80, rows: 24 }, guard);
@@ -84,10 +82,24 @@ describe('toPtyStdio', () => {
       stdio.write(kibibyte);
     }
     const queuedAtOverflow = channel.writableLength;
-    expect(guard.overflows, 'it has overflowed').toEqual(['channel']);
+    expect(guard.count(), 'it has overflowed').toBe(1);
 
     expect(stdio.write('more'), 'a write after overflow is refused').toBe(false);
     expect(channel.writableLength, 'and nothing more is queued').toBe(queuedAtOverflow);
+
+    // A dropped write still settles its callback, so Ink's unmount barrier
+    // (which waits on one) isn't left hanging behind the stalled channel.
+    const settled = await new Promise<boolean>((resolve) => {
+      stdio.write('later', () => {
+        resolve(true);
+      });
+      queueMicrotask(() => {
+        setTimeout(() => {
+          resolve(false);
+        }, 0);
+      });
+    });
+    expect(settled, "a dropped write's callback is called").toBe(true);
   });
 });
 

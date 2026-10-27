@@ -34,11 +34,12 @@ export interface BacklogGuard {
   readonly connectionWritableLength: () => number;
   /**
    * Called once, the instant the channel's or the connection's queue first
-   * passes the bound; `source` says which. After it, the adapter writes
-   * nothing more (the client isn't draining, so more output only grows the
-   * queue).
+   * passes the bound. After it the adapter writes nothing more — a client
+   * that isn't draining would only make the queue grow — and settles every
+   * further write's callback itself, since the real channel write is stuck
+   * behind the same stalled queue and would never call it back.
    */
-  readonly onOverflow: (source: 'channel' | 'connection') => void;
+  readonly onOverflow: () => void;
 }
 
 /**
@@ -85,9 +86,17 @@ export function toPtyStdio(
     encoding?: BufferEncoding | WriteCallback,
     callback?: WriteCallback,
   ): boolean => {
+    const done = typeof encoding === 'function' ? encoding : callback;
     if (stopped) {
       // Latched after an overflow: the client isn't draining, so adding more
-      // only grows the queue. Drop the write.
+      // only grows the queue. Drop the write, but settle its callback — the
+      // real channel write is stuck, so nothing else will — so no caller
+      // (Ink's unmount among them) waits on it forever.
+      if (done !== undefined) {
+        queueMicrotask(() => {
+          done(null);
+        });
+      }
       return false;
     }
     const data = typeof chunk === 'string' ? toCrlf(chunk) : chunk;
@@ -95,12 +104,12 @@ export function toPtyStdio(
       typeof encoding === 'function'
         ? write(data, encoding)
         : write(data, encoding ?? 'utf8', callback);
-    if (channel.writableLength > MAX_QUEUED_OUTPUT_BYTES) {
+    if (
+      channel.writableLength > MAX_QUEUED_OUTPUT_BYTES ||
+      guard.connectionWritableLength() > MAX_QUEUED_OUTPUT_BYTES
+    ) {
       stopped = true;
-      guard.onOverflow('channel');
-    } else if (guard.connectionWritableLength() > MAX_QUEUED_OUTPUT_BYTES) {
-      stopped = true;
-      guard.onOverflow('connection');
+      guard.onOverflow();
     }
     return flushed;
   };

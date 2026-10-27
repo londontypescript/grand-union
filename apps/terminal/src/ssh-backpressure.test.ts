@@ -10,48 +10,76 @@ import {
 } from './ssh-client-support.ts';
 import { sleep, startProxy } from './ssh-test-support.ts';
 
-const { serve, serveServer, connect } = setupSshTests();
+const { serveServer, connect } = setupSshTests();
 
-// Time for a client that stops reading to have its session torn down, with
-// ten times the headroom the timing rule asks for. The server must first
-// draw enough to fill the SSH window and then the 1 MiB queue; the TCP case
-// (many small 500×200 frames while the socket backs up) is the slower of
-// the two, measured at ~17.6 s locally, so the deadline is ~10× that.
+// The page's header; unlike the quote, the capacity notice doesn't contain
+// it, so a replacement shell showing it really rendered the page.
+const HEADER_TEXT = 'London TypeScript';
+
+// The socket-overflow teardown must fill the SSH window and then the 1 MiB
+// queue — many small 500×200 frames while the socket backs up — measured at
+// ~17.6 s locally, so the deadline is ~10×.
 const BACKLOG_MS = 180_000;
 
-describe('a client that stops reading', { timeout: BACKLOG_MS + TEST_TIMEOUT_MS }, () => {
-  it('has its shell ended, and the shell cap released, once 1 MiB of output waits for it', async () => {
-    const port = await serve({ maxSessions: 1 });
-    const watched = await shell(await connect(port), { term: 'xterm', cols: 500, rows: 24 });
-    await until(watched, () => watched.text().includes(PAGE_TEXT));
+// The channel-overflow teardown is prompt (the connection is destroyed, ~6 s
+// including the flood). This deadline sits well below the ~60 s that the
+// bug's slow fallback close takes without the fix, so the fix's prompt
+// teardown is what the test proves, not that slow path.
+const CHANNEL_TEARDOWN_MS = 45_000;
 
-    // From here on nothing is read: once 2 MiB sit unread, ssh2 stops giving
-    // the server window credit, and what the server writes has to queue.
-    watched.stream.pause();
-    const deadline = Date.now() + BACKLOG_MS;
-    let width = 500;
-    while (watched.exitCode === undefined && Date.now() < deadline) {
-      // Each resize makes the server draw the page again, about 2 KB of it.
-      for (let i = 0; i < 10; i += 1) {
-        width = width === 500 ? 400 : 500;
-        watched.stream.setWindow(24, width, 0, 0);
+describe(
+  'a client that stops reading its SSH channel',
+  { timeout: CHANNEL_TEARDOWN_MS + TEST_TIMEOUT_MS },
+  () => {
+    it('has the whole connection destroyed and its slot freed once 1 MiB waits in the channel', async () => {
+      const { server, port } = await serveServer({ maxSessions: 1, maxConnections: 1 });
+      const watched = await shell(await connect(port), { term: 'xterm', cols: 500, rows: 24 });
+      await until(watched, () => watched.text().includes(PAGE_TEXT));
+
+      // The client stops reading the channel, so ssh2 stops granting the
+      // server window credit and the server's writes queue in the channel.
+      watched.stream.pause();
+      const deadline = Date.now() + CHANNEL_TEARDOWN_MS;
+      let width = 500;
+      while (watched.ended === undefined && Date.now() < deadline) {
+        for (let i = 0; i < 10; i += 1) {
+          width = width === 500 ? 400 : 500;
+          watched.stream.setWindow(24, width, 0, 0);
+        }
+        await sleep(10);
       }
-      await sleep(10);
-    }
 
-    expect(watched.exitCode, 'the exit status of the shell the client stopped reading').toBe(0);
-    const next = await shell(await connect(port), PTY);
-    await until(next, () => next.text().includes(PAGE_TEXT));
-    expect(next.text(), 'a new shell, once that one has ended').not.toContain('at capacity');
-  });
-});
+      expect(
+        watched.ended,
+        'the connection is torn down when the channel queue overflows',
+      ).toBeDefined();
+      // The slot is freed: the connection count falls back to 0 and a fresh
+      // client gets the real page, not the capacity notice.
+      expect(await waitForConnectionCount(server, 0, TEST_TIMEOUT_MS), 'the slot is freed').toBe(0);
+      const next = await shell(await connect(port), PTY);
+      await until(next, () => next.text().includes(HEADER_TEXT));
+      expect(next.text(), 'a new shell renders the page, not the capacity notice').toContain(
+        HEADER_TEXT,
+      );
+      expect(next.text()).not.toContain('at capacity');
+    });
+  },
+);
 
 describe(
   'a client that stops reading at the TCP level',
   { timeout: BACKLOG_MS + TEST_TIMEOUT_MS },
   () => {
-    it('has its connection destroyed and its slot freed once the socket queue passes the bound', async () => {
-      const port = await serve({ maxSessions: 1 });
+    it('has the connection destroyed by the socket-overflow path, and its slot freed', async () => {
+      // Deadlines far beyond the test's own window, so no unrelated timer
+      // (handshake, pre-shell) can tear the connection down and mask a broken
+      // socket bound; only the 1 MiB socket queue can end this connection.
+      const { server, port } = await serveServer({
+        maxSessions: 1,
+        maxConnections: 1,
+        handshakeTimeoutMs: 600_000,
+        preShellTimeoutMs: 600_000,
+      });
       const proxy = await startProxy(port);
       try {
         const watched = await shell(await connect(proxy.port), {
@@ -61,9 +89,10 @@ describe(
         });
         await until(watched, () => watched.text().includes(PAGE_TEXT));
 
-        // Stop draining the server→client direction at the TCP level while
-        // the SSH window stays open; keep sending resizes (client→server), so
-        // the server keeps drawing into a socket whose queue now only grows.
+        // Stop draining server→client at the TCP level. The SSH window still
+        // has credit (it is larger than the 1 MiB socket bound), so the
+        // channel never backs up — only the socket queue grows — and resizes
+        // (client→server) keep the server drawing into it.
         proxy.pauseFromServer();
         const deadline = Date.now() + BACKLOG_MS;
         let cols = 500;
@@ -75,15 +104,23 @@ describe(
           await sleep(10);
         }
 
-        expect(
-          watched.ended,
-          'the connection is torn down once its socket queue passes the bound',
-        ).toBeDefined();
+        // Destroyed, not gracefully closed: the backed-up socket is reset, so
+        // the client sees a failure rather than a goodbye-then-close.
+        expect(watched.ended, 'the connection is torn down').toBeDefined();
+        expect(watched.ended, 'it was destroyed (a reset), i.e. the socket-overflow path').toMatch(
+          /failed/,
+        );
+        expect(await waitForConnectionCount(server, 0, TEST_TIMEOUT_MS), 'the slot is freed').toBe(
+          0,
+        );
 
-        // The slot is free: a fresh client, straight to the server, gets a shell.
+        // A fresh client, straight to the server, gets the real page.
         const next = await shell(await connect(port), PTY);
-        await until(next, () => next.text().includes(PAGE_TEXT));
-        expect(next.text(), 'the freed slot lets a new shell mount').not.toContain('at capacity');
+        await until(next, () => next.text().includes(HEADER_TEXT));
+        expect(next.text(), 'the freed slot lets a new shell render the page').toContain(
+          HEADER_TEXT,
+        );
+        expect(next.text()).not.toContain('at capacity');
       } finally {
         await proxy.close();
       }
