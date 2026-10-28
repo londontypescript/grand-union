@@ -118,7 +118,7 @@ Read every diff before accepting it.
   exactly that width. Treat a failure there as a rendering bug until proven
   otherwise.
 - **Browser render checks** measure content position per `align` value, and
-  run in `pnpm test:render` and the render CI job (Phase 5, #8).
+  run in `pnpm test:render` and the render CI job.
 
 ## 6. Update the docs
 
@@ -131,8 +131,9 @@ Read every diff before accepting it.
 
 ```sh
 pnpm gate                 # format, lint, typecheck, tests and temple-bar's checks
-pnpm test:render          # browser render checks (Phase 5, #8)
-pnpm screenshots:update   # if the page looks different (Phase 5, #8)
+pnpm build                # the render checks test the built apps
+pnpm test:render          # browser and Electron render checks
+pnpm screenshots:update   # if the page looks different
 ```
 
 ## Checklist

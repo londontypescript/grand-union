@@ -8,7 +8,8 @@ to whatever every renderer's peer range allows, stands unchanged.
 **Port note:** ported from the prototype unchanged apart from this note.
 `apps/web/src/react-versions.test.ts` arrives with Phase 3a (#4). `pnpm verify`
 was the prototype's gate, build and render checks in one command: here the
-gate is `pnpm gate`, and the render checks arrive with Phase 5 (#8).
+gate is `pnpm gate`, and the render checks are `pnpm test:render`, after
+`pnpm build`.
 
 ## Context
 

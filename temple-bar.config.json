@@ -1,1 +1,7 @@
-{}
+{
+  "coverageExclusions": [
+    "tests/render/src/desktop.spec.ts",
+    "tests/render/src/scene.spec.ts",
+    "tests/render/src/web.spec.ts"
+  ]
+}

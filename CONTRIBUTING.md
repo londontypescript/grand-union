@@ -10,10 +10,18 @@
   typecheck and tests in the root and every workspace package, plus its own
   checks (file length, links, unused code, the setup it installed). Run it
   before you open a PR; CI runs it again regardless.
-- `pnpm test:render` — the browser and Electron render checks. They arrive
-  with Phase 5 (#8), with a CI job of their own.
+- `pnpm test:render` — the browser and Electron render checks, which CI runs
+  in a job of their own (`.github/workflows/render.yml`). They test the
+  built apps, so first, once per change: `pnpm build`. Once per machine:
+  `pnpm exec playwright install chromium` for the browser, and
+  `pnpm --filter @lts/desktop exec install-electron` for Electron's own
+  binary, which Electron otherwise downloads the first time it runs. On
+  headless Linux, as in CI: `playwright install --with-deps chromium` for
+  the system libraries, and `xvfb-run -a pnpm test:render` for a display.
 - `pnpm screenshots:update` — refreshes the committed screenshots in
-  `docs/screenshots` after a layout or theme change. Also Phase 5 (#8).
+  `docs/screenshots` after a layout or theme change, with the same
+  prerequisites. A plain `pnpm test:render` writes its screenshots to the
+  gitignored `tests/render/test-results/screenshots` instead.
 
 ## How the repo is organised
 
@@ -74,7 +82,7 @@ Instead:
   every renderer, every closed union is handled everywhere. It cannot prove
   _behavioural correspondence_ — a component can satisfy its contract and
   render nothing. That's a narrower, separate claim, which is why
-  `tests/render` (Phase 5, #8) exists alongside the type checks rather than
+  `tests/render` exists alongside the type checks rather than
   instead of them. Know which claim you're relying on.
 - **Don't submit code you can't explain in review.** If you can't walk
   through why a change works, it isn't ready, regardless of how it was

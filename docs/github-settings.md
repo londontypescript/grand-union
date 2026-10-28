@@ -19,8 +19,8 @@ fails when one is missing or weakened:
   (`.github/workflows/temple-bar-pr-title.yml`), with branches up to date
   before merging, and CodeQL's code scanning results. Setup adds these when
   it is run again once the workflows and a first CodeQL analysis are on
-  `main`. The render checks' job joins them from Phase 5 (#8), once it has
-  passed on `main`.
+  `main`. The render checks' job, `Render checks`
+  (`.github/workflows/render.yml`), joins them once it has passed on `main`.
 - **main: the judge** — requires `temple-bar judge`
   (`.github/workflows/temple-bar-judge.yml`), which refuses a pull request
   that changes the checks themselves. A repository admin may bypass this one
