@@ -69,7 +69,7 @@ pnpm dev:terminal   # ink over SSH on 127.0.0.1, for local development only — 
 pnpm dev:terminal:connect   # = ssh -p 2222 localhost (the resolved port), without host-key prompts
 pnpm dev:desktop    # Electron on the web dev server (start pnpm dev:web first)
 
-pnpm test:render    # Playwright: each renderer visibly honours the layout union (Phase 5, #8)
+pnpm test:render    # Playwright: each renderer visibly honours the layout union (after pnpm build)
 ```
 
 ## Adding a primitive

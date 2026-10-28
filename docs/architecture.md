@@ -6,10 +6,9 @@ an Electron shell around the dom build. This repository's issues say why and
 what comes next; this file says what exists and how it fits together.
 Decisions with alternatives live in `docs/adr/`.
 
-The code is being ported here from a prototype, one phase per issue. The
+The code was ported here from a prototype, one phase per issue. The
 vocabulary, pages, the three renderers, the web, scene, terminal and desktop
-apps and the contract tests are here; the render checks arrive in 5 (#8). Until its phase merges, a part described here, and
-the check that covers it, exists only in the prototype.
+apps, the contract tests and the render checks are all here.
 
 ## Workspace
 
@@ -262,9 +261,10 @@ another library's: private state of our own belongs in `#private` fields.
 `pnpm gate` (temple-bar's gate) is the single gate, run identically locally
 and in CI: format, lint, typecheck and tests in the root and every workspace
 package (unit and contract tests, the SSH end-to-end tests included), plus
-temple-bar's own checks, file length among them. The browser render checks
-(`pnpm test:render`) run in a CI job of their own from Phase 5 (#8), required
-once it has passed on `main`.
+temple-bar's own checks, file length among them. The browser and Electron
+render checks (`pnpm test:render`, after `pnpm build`) run in a CI job of
+their own, `Render checks` (`.github/workflows/render.yml`), required once it
+has passed on `main`.
 Screenshots default to a gitignored directory under
 `tests/render/test-results`; the committed set in `docs/screenshots` is
 refreshed on purpose with `pnpm screenshots:update`.
