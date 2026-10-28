@@ -15,7 +15,9 @@
   built apps, so first, once per change: `pnpm build`. Once per machine:
   `pnpm exec playwright install chromium` for the browser, and
   `pnpm --filter @lts/desktop exec install-electron` for Electron's own
-  binary, which Electron otherwise downloads the first time it runs.
+  binary, which Electron otherwise downloads the first time it runs. On
+  headless Linux, as in CI: `playwright install --with-deps chromium` for
+  the system libraries, and `xvfb-run -a pnpm test:render` for a display.
 - `pnpm screenshots:update` — refreshes the committed screenshots in
   `docs/screenshots` after a layout or theme change, with the same
   prerequisites. A plain `pnpm test:render` writes its screenshots to the
