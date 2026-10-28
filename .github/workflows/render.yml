@@ -1,0 +1,69 @@
+# The render checks (tests/render): the built web and scene apps in Chromium,
+# and the built desktop shell in Electron, each measured, not just loaded.
+# A workflow of its own because the gate requires temple-bar's workflows to
+# stay exact copies of the ones it writes.
+name: Render
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# A newer push cancels the run for the commit it replaced.
+concurrency:
+  group: render-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  render:
+    name: Render checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      # checkout, pnpm/action-setup and setup-node are pinned to the same
+      # commits as .github/workflows/temple-bar-gate.yml, and Dependabot
+      # doesn't bump them (see .github/dependabot.yml). Whenever temple-bar
+      # is upgraded, update these by hand to match its workflow.
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+
+      - name: Install Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Build
+        run: pnpm build
+
+      # Electron 44's package has no install script: it downloads its binary
+      # the first time anything asks for its path. Fetched here, as a step of
+      # its own, so a failed download fails here with its own message rather
+      # than inside the desktop spec's launch.
+      - name: Install Electron's binary
+        run: pnpm --filter @lts/desktop exec install-electron
+
+      - name: Render tests
+        run: xvfb-run -a pnpm test:render
+
+      - name: Upload render artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: render-artifacts
+          path: |
+            tests/render/test-results/screenshots
+            playwright-report
+          if-no-files-found: ignore
