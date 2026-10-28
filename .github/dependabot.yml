@@ -1,11 +1,21 @@
 version: 2
 updates:
-  # No github-actions entry yet: the only workflows are temple-bar's, which
-  # the gate requires to match its own copies exactly, so a Dependabot bump of
-  # their actions would fail every time. They are updated by upgrading
-  # temple-bar. The project has no workflow of its own until the render
-  # checks' in Phase 5 (#8), which decides how that one's actions are kept
-  # current.
+  # Actions in the project's own workflow (render.yml) only. temple-bar's
+  # workflows must match its own copies exactly, so a Dependabot bump of
+  # their actions would fail the gate every time; they are updated by
+  # upgrading temple-bar. Hence an allowlist, not a list of what to ignore:
+  # an action a future temple-bar adds is never bumped in its files. The
+  # actions render.yml shares with temple-bar-gate.yml (checkout,
+  # pnpm/action-setup, setup-node) stay pinned to the gate's commits and are
+  # updated by hand to match when temple-bar is upgraded.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: chore
+    allow:
+      - dependency-name: actions/upload-artifact
 
   # Routine version updates only. Security fixes don't wait for this
   # schedule: Dependabot security updates (a repository setting, see
@@ -26,8 +36,8 @@ updates:
       # ADR 0004: React is pinned to the narrow intersection of r3f's and
       # Ink's peer ranges, with strictPeerDependencies: true — these move
       # together or not at all, never split across separate PRs. Before
-      # merging one: see the render checks pass (CI's render job, from
-      # Phase 5, #8) and check the new versions against ADR 0005's window.
+      # merging one: see the render checks pass (CI's `Render checks` job)
+      # and check the new versions against ADR 0005's window.
       renderer-stack:
         patterns:
           - 'react'
