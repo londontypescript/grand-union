@@ -25,7 +25,9 @@ export default defineConfig({
   workers: 1,
   retries: 0,
   forbidOnly: Boolean(process.env['CI']),
-  reporter: [['html', { outputFolder: '../../playwright-report', open: 'never' }]],
+  // `list` so a failure's message is in the log (CI's included), `html` for
+  // the report uploaded as an artifact.
+  reporter: [['list'], ['html', { outputFolder: '../../playwright-report', open: 'never' }]],
   use: {
     launchOptions: { args: SOFTWARE_WEBGL_ARGS },
   },

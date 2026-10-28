@@ -60,7 +60,7 @@ pnpm gate           # temple-bar's gate: format, lint, typecheck, tests and its 
 pnpm ready          # the gate, then marks the commit as ready to push
 ```
 
-Each target's commands arrive with the phase that ports it:
+Each target's commands:
 
 ```sh
 pnpm dev:web        # react-dom, in a browser
