@@ -28,7 +28,7 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
-    "@londontypescript/temple-bar": "0.2.0",
+    "@londontypescript/temple-bar": "0.2.1",
     "@lts/vocabulary": "workspace:*",
     "@playwright/test": "1.63.0",
     "@types/node": "24.13.6",

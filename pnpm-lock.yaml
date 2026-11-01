@@ -57,8 +57,8 @@ importers:
         specifier: 10.0.1
         version: 10.0.1(eslint@10.11.0(jiti@2.7.0))
       '@londontypescript/temple-bar':
-        specifier: 0.2.0
-        version: 0.2.0
+        specifier: 0.2.1
+        version: 0.2.1
       '@lts/vocabulary':
         specifier: workspace:*
         version: link:packages/vocabulary
@@ -714,8 +714,8 @@ packages:
   '@keyv/serialize@1.1.1':
     resolution: {integrity: sha512-dXn3FZhPv0US+7dtJsIi2R+c7qWYiReoEh5zUntWCf4oSpMNib8FDhSoed6m3QyZdx5hK7iLFkYk3rNxwt8vTA==}
 
-  '@londontypescript/temple-bar@0.2.0':
-    resolution: {integrity: sha512-pf7ghJj9BUhaBQb9/akqSOEVuCbZj4TMsNSQPz+coDpyfIAIFQ3JflABtFCzrKdc7gyO9C/brRsOMSUXA1fKrA==}
+  '@londontypescript/temple-bar@0.2.1':
+    resolution: {integrity: sha512-8id0BtUr0xI6zh33lOtYsydbgTiRvbkZ5UYtEQk1ImqcA2zNl8UfAg1ul4u2X2kOh3iFaWefx1YoktcCEQ7Evg==}
     engines: {node: '>=24'}
     hasBin: true
 
@@ -2494,6 +2494,9 @@ packages:
   zod@4.6.5:
     resolution: {integrity: sha512-v5l/aFXZQeai4awLbOpSoHecE9UiMrnfx75tEXLjNonXVARxQ5mOeipTjROUchszUNCqnE+hqAMujRsRHsut2Q==}
 
+  zod@4.6.7:
+    resolution: {integrity: sha512-g8W2D2kU6a8untc053fX1uVBKzM7yqAxW/3zwk83+6RyF2+SKOuV+c0wBDhUwzV1PaGapmZH+rmcUzPf+3CGwg==}
+
   zustand@4.5.7:
     resolution: {integrity: sha512-CHOUy7mu3lbD6o6LJLfllpjkzhHXSBlX8B9+qPddUsIfeF5S/UZ5q0kmCsnRqT1UHFQZchNFDDzMbQsuesHWlw==}
     engines: {node: '>=12.7.0'}
@@ -2836,7 +2839,7 @@ snapshots:
 
   '@keyv/serialize@1.1.1': {}
 
-  '@londontypescript/temple-bar@0.2.0':
+  '@londontypescript/temple-bar@0.2.1':
     dependencies:
       knip: 6.39.0
       markdownlint: 0.41.1
@@ -3800,7 +3803,7 @@ snapshots:
       tinyglobby: 0.2.17
       unbash: 4.0.12
       yaml: 2.9.1
-      zod: 4.6.5
+      zod: 4.6.7
 
   levn@0.4.1:
     dependencies:
@@ -4513,6 +4516,8 @@ snapshots:
       zod: 4.6.5
 
   zod@4.6.5: {}
+
+  zod@4.6.7: {}
 
   zustand@4.5.7(@types/react@19.3.0)(react@19.3.0):
     dependencies:
