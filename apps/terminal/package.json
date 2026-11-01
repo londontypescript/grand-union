@@ -19,7 +19,7 @@
     "ssh2": "1.17.0"
   },
   "devDependencies": {
-    "@types/node": "24.13.6",
+    "@types/node": "24.19.2",
     "@types/react": "catalog:",
     "@types/ssh2": "1.15.6",
     "@xterm/headless": "6.0.0",

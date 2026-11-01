@@ -10,8 +10,8 @@
     "test": "vitest run --root ../.. --project unit apps/desktop/"
   },
   "devDependencies": {
-    "@types/node": "24.13.6",
-    "electron": "44.9.1",
+    "@types/node": "24.19.2",
+    "electron": "45.1.0",
     "esbuild": "0.28.2",
     "typescript": "catalog:"
   }
